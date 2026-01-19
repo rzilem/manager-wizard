@@ -228,6 +228,7 @@ def search():
     query = request.args.get('q', '').strip()
     search_type = request.args.get('type', 'auto')
     delinquent = request.args.get('delinquent', 'false').lower() == 'true'
+    community_filter = request.args.get('community', '').strip() or None
 
     if not query:
         return jsonify({'error': 'Query required', 'homeowners': []}), 400
@@ -240,13 +241,18 @@ def search():
         elif query.upper().startswith(('FAL', 'AMC', 'AVA', 'CHA', 'HER', 'HIL', 'SOC', 'VIL', 'WES')):
             search_type = 'account'
         else:
-            search_type = 'address'
+            # Default to general search (searches both name AND address)
+            search_type = 'general'
 
     # Execute search
     if search_type == 'phone':
         return search_by_phone(query)
     elif search_type == 'address':
-        return search_by_address(query)
+        return search_by_address(query, community_filter)
+    elif search_type == 'name':
+        return search_by_name(query, community_filter)
+    elif search_type == 'general':
+        return search_general(query, community_filter)
     elif search_type == 'community':
         return search_by_community(query, delinquent)
     elif search_type == 'account':
@@ -278,10 +284,16 @@ def search_by_phone(phone):
     })
 
 
-def search_by_address(address):
-    """Search by address."""
+def search_by_address(address, community_filter=None):
+    """Search by address, with optional community filter."""
     safe_address = address.replace("'", "''")
-    results = query_dataverse(f"contains(cr258_property_address,'{safe_address}')", top=20)
+    filter_expr = f"contains(cr258_property_address,'{safe_address}')"
+
+    if community_filter:
+        safe_community = community_filter.replace("'", "''")
+        filter_expr += f" and contains(cr258_assoc_name,'{safe_community}')"
+
+    results = query_dataverse(filter_expr, top=20)
 
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
@@ -291,6 +303,61 @@ def search_by_address(address):
     return jsonify({
         'search_type': 'address',
         'query': address,
+        'community_filter': community_filter,
+        'homeowners': homeowners,
+        'count': len(homeowners)
+    })
+
+
+def search_by_name(name, community_filter=None):
+    """Search by owner name - flexible partial matching."""
+    safe_name = name.replace("'", "''")
+
+    # Search owner name field
+    filter_expr = f"contains(cr258_owner_name,'{safe_name}')"
+
+    if community_filter:
+        safe_community = community_filter.replace("'", "''")
+        filter_expr += f" and contains(cr258_assoc_name,'{safe_community}')"
+
+    results = query_dataverse(filter_expr, top=30)
+
+    if results is None:
+        return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
+
+    homeowners = [format_homeowner(r) for r in results]
+
+    return jsonify({
+        'search_type': 'name',
+        'query': name,
+        'community_filter': community_filter,
+        'homeowners': homeowners,
+        'count': len(homeowners)
+    })
+
+
+def search_general(query, community_filter=None):
+    """Search across name AND address fields - most flexible search."""
+    safe_query = query.replace("'", "''")
+
+    # Build filter: search in name OR address
+    filter_expr = f"(contains(cr258_owner_name,'{safe_query}') or contains(cr258_property_address,'{safe_query}'))"
+
+    if community_filter:
+        safe_community = community_filter.replace("'", "''")
+        filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
+
+    results = query_dataverse(filter_expr, top=30)
+
+    if results is None:
+        return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
+
+    homeowners = [format_homeowner(r) for r in results]
+
+    return jsonify({
+        'search_type': 'general',
+        'query': query,
+        'community_filter': community_filter,
         'homeowners': homeowners,
         'count': len(homeowners)
     })

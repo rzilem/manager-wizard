@@ -439,6 +439,51 @@
             color: var(--primary);
         }
 
+        .quick-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .quick-btn.active i {
+            color: white;
+        }
+
+        .active-filter {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: var(--primary-light);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+
+        .filter-label {
+            color: var(--gray-500);
+        }
+
+        .filter-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .clear-filter {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .clear-filter:hover {
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+
         /* Results Section */
         .results-container {
             background: white;
@@ -1146,22 +1191,29 @@
             </div>
 
             <div class="quick-actions">
-                <div class="quick-label">Quick lookups</div>
+                <div class="quick-label">Filter by community</div>
                 <div class="quick-btns">
-                    <button class="quick-btn" data-query="Falcon Pointe" data-type="community">
+                    <button class="quick-btn community-filter" data-community="Falcon Pointe">
                         <i class="fas fa-building"></i> Falcon Pointe
                     </button>
-                    <button class="quick-btn" data-query="Avalon" data-type="community">
+                    <button class="quick-btn community-filter" data-community="Avalon">
                         <i class="fas fa-building"></i> Avalon
                     </button>
-                    <button class="quick-btn" data-query="Chandler Creek" data-type="community">
+                    <button class="quick-btn community-filter" data-community="Chandler Creek">
                         <i class="fas fa-building"></i> Chandler Creek
                     </button>
-                    <button class="quick-btn" data-query="Heritage Park" data-type="community">
+                    <button class="quick-btn community-filter" data-community="Heritage Park">
                         <i class="fas fa-building"></i> Heritage Park
                     </button>
-                    <button class="quick-btn" data-query="Vista Vera" data-type="community">
+                    <button class="quick-btn community-filter" data-community="Vista Vera">
                         <i class="fas fa-building"></i> Vista Vera
+                    </button>
+                </div>
+                <div class="active-filter" id="activeFilter" style="display: none;">
+                    <span class="filter-label">Filtering:</span>
+                    <span class="filter-value" id="filterValue"></span>
+                    <button class="clear-filter" id="clearFilter" title="Clear filter">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
@@ -1203,12 +1255,13 @@
         let isLoading = false;
         let suggestDebounceTimer = null;
         let activeAutocompleteIndex = -1;
+        let communityFilter = null;  // Active community filter
 
         // DOM Elements
         const searchInput = document.getElementById('searchInput');
         const searchBtn = document.getElementById('searchBtn');
         const typePills = document.querySelectorAll('.type-pill');
-        const quickBtns = document.querySelectorAll('.quick-btn');
+        const communityFilterBtns = document.querySelectorAll('.community-filter');
         const exampleChips = document.querySelectorAll('.example-chip');
         const delinquentToggle = document.getElementById('delinquentToggle');
         const delinquentCheckbox = document.getElementById('delinquentOnly');
@@ -1218,6 +1271,9 @@
         const statusIndicator = document.getElementById('statusIndicator');
         const toast = document.getElementById('toast');
         const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+        const activeFilterEl = document.getElementById('activeFilter');
+        const filterValueEl = document.getElementById('filterValue');
+        const clearFilterBtn = document.getElementById('clearFilter');
 
         // Check API status on load
         async function checkStatus() {
@@ -1260,6 +1316,11 @@
                 q: query.trim(),
                 type: searchType
             });
+
+            // Add community filter if active
+            if (communityFilter) {
+                params.append('community', communityFilter);
+            }
 
             if (searchType === 'community' && delinquentCheckbox.checked) {
                 params.append('delinquent', 'true');
@@ -1799,20 +1860,47 @@
             });
         });
 
-        quickBtns.forEach(btn => {
+        // Community filter buttons - toggle filter on/off
+        communityFilterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                searchInput.value = btn.dataset.query;
+                const community = btn.dataset.community;
 
-                // Set search type
-                const type = btn.dataset.type;
-                typePills.forEach(p => {
-                    p.classList.toggle('active', p.dataset.type === type);
-                });
-                currentSearchType = type;
-                delinquentToggle.style.display = type === 'community' ? 'flex' : 'none';
+                // Toggle filter
+                if (communityFilter === community) {
+                    // Clear filter if clicking same button
+                    communityFilter = null;
+                    btn.classList.remove('active');
+                    activeFilterEl.style.display = 'none';
+                } else {
+                    // Set new filter
+                    communityFilter = community;
+                    communityFilterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    filterValueEl.textContent = community;
+                    activeFilterEl.style.display = 'flex';
+                }
 
-                search(btn.dataset.query, type);
+                // If there's a search query, re-run search with filter
+                if (searchInput.value.trim().length >= 2) {
+                    search(searchInput.value);
+                }
+
+                searchInput.focus();
             });
+        });
+
+        // Clear filter button
+        clearFilterBtn.addEventListener('click', () => {
+            communityFilter = null;
+            communityFilterBtns.forEach(b => b.classList.remove('active'));
+            activeFilterEl.style.display = 'none';
+
+            // Re-run search if there's a query
+            if (searchInput.value.trim().length >= 2) {
+                search(searchInput.value);
+            }
+
+            searchInput.focus();
         });
 
         exampleChips.forEach(chip => {
