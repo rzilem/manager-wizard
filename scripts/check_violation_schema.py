@@ -1,6 +1,5 @@
 """
-Check Power BI schema for violation tables to find property-level linkage.
-Deep dive into all available tables and datasets.
+Check Power BI PSPM Violation Report for property-level data.
 """
 import json
 import requests
@@ -38,154 +37,105 @@ def run_dax(query, workspace_id, dataset_id, label=""):
     if resp.status_code == 200:
         return resp.json()['results'][0]['tables'][0]['rows']
     else:
-        print(f"    [{label}] Error {resp.status_code}: {resp.text[:300]}")
+        print(f"    [{label}] Error {resp.status_code}")
         return []
 
-def get_tables(workspace_id, dataset_id):
-    """Get list of tables in a dataset."""
+print("=" * 70)
+print("PSPM VIOLATION REPORT - Finding Dataset and Tables")
+print("=" * 70)
+
+# From the URL: workspace c5395f33-bd22-4d26-846f-5ad44c7ad108, report 97a64eee-0298-4d42-a058-60911a75fe82
+workspace_id = "c5395f33-bd22-4d26-846f-5ad44c7ad108"
+report_id = "97a64eee-0298-4d42-a058-60911a75fe82"
+
+# Get report details to find dataset
+print(f"\n[1] Getting report details...")
+resp = requests.get(
+    f"https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/reports/{report_id}",
+    headers=headers
+)
+if resp.status_code == 200:
+    report = resp.json()
+    print(f"    Report Name: {report.get('name')}")
+    dataset_id = report.get('datasetId')
+    print(f"    Dataset ID: {dataset_id}")
+else:
+    print(f"    Error getting report: {resp.status_code}")
+    dataset_id = None
+
+if not dataset_id:
+    print("\n[1b] Listing all datasets in workspace...")
     resp = requests.get(
-        f"https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets/{dataset_id}/tables",
+        f"https://api.powerbi.com/v1.0/myorg/groups/{workspace_id}/datasets",
         headers=headers
     )
     if resp.status_code == 200:
-        return [t['name'] for t in resp.json().get('value', [])]
-    return []
+        datasets = resp.json().get('value', [])
+        for ds in datasets:
+            print(f"    - {ds['name']}: {ds['id']}")
+            if 'violation' in ds['name'].lower():
+                dataset_id = ds['id']
+                print(f"      ^ Using this one!")
 
-print("=" * 70)
-print("DEEP DIVE: Finding Property-Level Violation Data")
-print("=" * 70)
+if dataset_id:
+    print(f"\n[2] Searching for tables in dataset {dataset_id}...")
 
-# List all datasets we have access to
-datasets = [
-    ("M360", pbi['m360_workspace_id'], pbi['m360_dataset_id']),
-    ("Violations", pbi['m360_workspace_id'], pbi.get('violation_dataset_id', '')),
-    ("KPI", pbi['kpi_workspace_id'], pbi['kpi_dataset_id']),
-]
+    # Try various table name patterns
+    table_names = [
+        "Open Violation Raw",
+        "Closed Violation Raw",
+        "OpenViolationRaw",
+        "ClosedViolationRaw",
+        "Open Violations",
+        "Closed Violations",
+        "Violation",
+        "Violations",
+        "ViolationData",
+        "vwOpenViolations",
+        "vwClosedViolations",
+    ]
 
-print("\n[1] Checking available tables in each dataset...")
-for name, ws, ds in datasets:
-    if not ds:
-        continue
-    print(f"\n    {name} Dataset ({ds[:8]}...):")
+    found = False
+    for table in table_names:
+        query = f"EVALUATE TOPN(1, '{table}')"
+        rows = run_dax(query, workspace_id, dataset_id, table)
+        if rows:
+            found = True
+            cols = list(rows[0].keys())
+            print(f"\n    FOUND: '{table}' - {len(cols)} columns")
 
-    # Try to list tables via API
-    tables = get_tables(ws, ds)
-    if tables:
-        for t in tables:
-            print(f"        - {t}")
-    else:
-        print("        (Table list not available via API)")
+            # Look for property columns
+            property_cols = [c for c in cols if any(x in c.lower() for x in
+                ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account', 'acct'])]
 
-# Check for violation-related tables in KPI dataset
-print("\n[2] Looking for property-linked violation tables in KPI dataset...")
+            if property_cols:
+                print(f"    >>> PROPERTY COLUMNS: {property_cols}")
 
-# Try common table names that might have property info
-table_checks = [
-    "Violations",
-    "ViolationDetail",
-    "ViolationDetails",
-    "XNDetails",
-    "XN_Details",
-    "PropertyViolations",
-    "OwnerViolations",
-    "PA_XN_Weekly_Table",
-    "pbi Violations",
-]
+            print(f"    All columns:")
+            for c in sorted(cols):
+                print(f"        {c}")
 
-for table in table_checks:
-    query = f"EVALUATE TOPN(1, '{table}')"
-    rows = run_dax(query, pbi['kpi_workspace_id'], pbi['kpi_dataset_id'], table)
-    if rows:
-        cols = list(rows[0].keys())
-        # Check for property/owner columns
-        property_cols = [c for c in cols if any(x in c.lower() for x in ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account'])]
-        print(f"\n    {table}: {len(cols)} columns")
-        if property_cols:
-            print(f"    *** FOUND PROPERTY COLUMNS: {property_cols}")
-        print(f"    All columns: {cols[:10]}{'...' if len(cols) > 10 else ''}")
+            # Show sample data
+            print(f"\n    Sample row values:")
+            for k, v in rows[0].items():
+                if v:
+                    val_str = str(v)[:60]
+                    print(f"        {k}: {val_str}")
 
-# Check M360 dataset for XN table with property info
-print("\n[3] Checking M360 dataset for XN/violation tables with property linkage...")
+    if not found:
+        print("\n    No violation tables found with common names.")
+        print("    Let me try to discover tables...")
 
-m360_tables = [
-    "XN",
-    "XNs",
-    "ActionItems",
-    "Violations",
-    "pbi XN",
-    "pbi Violations",
-]
-
-for table in m360_tables:
-    query = f"EVALUATE TOPN(1, '{table}')"
-    rows = run_dax(query, pbi['m360_workspace_id'], pbi['m360_dataset_id'], table)
-    if rows:
-        cols = list(rows[0].keys())
-        property_cols = [c for c in cols if any(x in c.lower() for x in ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account'])]
-        print(f"\n    {table}: {len(cols)} columns")
-        if property_cols:
-            print(f"    *** FOUND PROPERTY COLUMNS: {property_cols}")
-        print(f"    All columns: {cols}")
-
-# Check if pbi Homeowners has any violation-related columns
-print("\n[4] Checking if 'pbi Homeowners' has violation columns...")
-query = "EVALUATE TOPN(1, 'pbi Homeowners')"
-rows = run_dax(query, pbi['m360_workspace_id'], pbi['m360_dataset_id'], "pbi Homeowners")
-if rows:
-    cols = list(rows[0].keys())
-    viol_cols = [c for c in cols if 'viol' in c.lower() or 'xn' in c.lower()]
-    print(f"    Violation-related columns: {viol_cols if viol_cols else 'None found'}")
-    print(f"    Total columns: {len(cols)}")
-
-# Check ActionItemDetails for ALL columns
-print("\n[5] ActionItemDetails - FULL column list...")
-query = "EVALUATE TOPN(1, ActionItemDetails)"
-rows = run_dax(query, pbi['kpi_workspace_id'], pbi['kpi_dataset_id'], "ActionItemDetails")
-if rows:
-    cols = list(rows[0].keys())
-    print(f"    Total columns: {len(cols)}")
-    print(f"    ALL COLUMNS:")
-    for c in sorted(cols):
-        print(f"        {c}")
-
-    # Highlight property-related
-    property_cols = [c for c in cols if any(x in c.lower() for x in ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account'])]
-    if property_cols:
-        print(f"\n    *** PROPERTY-RELATED: {property_cols}")
-
-# Check CurrentStatus for ALL columns
-print("\n[6] CurrentStatus - FULL column list...")
-query = "EVALUATE TOPN(1, CurrentStatus)"
-rows = run_dax(query, pbi['m360_workspace_id'], pbi['violation_dataset_id'], "CurrentStatus")
-if rows:
-    cols = list(rows[0].keys())
-    print(f"    Total columns: {len(cols)}")
-    print(f"    ALL COLUMNS:")
-    for c in sorted(cols):
-        print(f"        {c}")
-
-    property_cols = [c for c in cols if any(x in c.lower() for x in ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account'])]
-    if property_cols:
-        print(f"\n    *** PROPERTY-RELATED: {property_cols}")
-
-# Try to find what other tables exist in KPI dataset by probing common Vantaca tables
-print("\n[7] Probing for other Vantaca tables in KPI dataset...")
-probe_tables = [
-    "vOwnerLedger", "vOwnerLedger2", "Owners", "Properties",
-    "XNActionItems", "XNViolations", "ViolationXN",
-    "pbi ActionItems", "pbi XNs", "XN_Property",
-    "PropertyXN", "OwnerXN", "XNOwner",
-]
-for table in probe_tables:
-    query = f"EVALUATE TOPN(1, '{table}')"
-    rows = run_dax(query, pbi['kpi_workspace_id'], pbi['kpi_dataset_id'], table)
-    if rows:
-        cols = list(rows[0].keys())
-        print(f"\n    FOUND: {table} - {len(cols)} columns")
-        property_cols = [c for c in cols if any(x in c.lower() for x in ['owner', 'property', 'address', 'prop', 'lot', 'unit', 'account'])]
-        if property_cols:
-            print(f"    *** PROPERTY COLUMNS: {property_cols}")
+        # Try INFO.TABLES() to list tables
+        query = "EVALUATE INFO.TABLES()"
+        rows = run_dax(query, workspace_id, dataset_id, "INFO.TABLES")
+        if rows:
+            print("\n    Tables in dataset:")
+            for row in rows:
+                for k, v in row.items():
+                    if 'name' in k.lower() and v:
+                        print(f"        - {v}")
 
 print("\n" + "=" * 70)
-print("SEARCH COMPLETE")
+print("DONE")
 print("=" * 70)
