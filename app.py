@@ -297,6 +297,82 @@ def search_by_account(account):
     })
 
 
+@app.route('/api/suggest')
+def suggest():
+    """Predictive search - return quick suggestions as user types."""
+    query = request.args.get('q', '').strip()
+
+    if len(query) < 2:
+        return jsonify({'suggestions': []})
+
+    safe_query = query.replace("'", "''")
+    suggestions = []
+    seen = set()
+
+    # Search across multiple fields for suggestions
+    # 1. Owner names
+    name_results = query_dataverse(
+        f"contains(cr258_owner_name,'{safe_query}')",
+        top=5
+    )
+    if name_results:
+        for r in name_results:
+            name = r.get('cr258_owner_name', '')
+            if name and name.lower() not in seen:
+                seen.add(name.lower())
+                suggestions.append({
+                    'text': name,
+                    'type': 'person',
+                    'icon': 'user',
+                    'subtext': r.get('cr258_property_address', '')
+                })
+
+    # 2. Addresses (if query looks like an address - has numbers)
+    if any(c.isdigit() for c in query):
+        addr_results = query_dataverse(
+            f"contains(cr258_property_address,'{safe_query}')",
+            top=4
+        )
+        if addr_results:
+            for r in addr_results:
+                addr = r.get('cr258_property_address', '')
+                if addr and addr.lower() not in seen:
+                    seen.add(addr.lower())
+                    suggestions.append({
+                        'text': addr,
+                        'type': 'address',
+                        'icon': 'map-marker-alt',
+                        'subtext': r.get('cr258_assoc_name', '')
+                    })
+
+    # 3. Communities
+    comm_results = query_dataverse(
+        f"contains(cr258_assoc_name,'{safe_query}')",
+        top=3
+    )
+    if comm_results:
+        # Get unique community names
+        communities_seen = set()
+        for r in comm_results:
+            comm = r.get('cr258_assoc_name', '')
+            if comm and comm.lower() not in communities_seen:
+                communities_seen.add(comm.lower())
+                if comm.lower() not in seen:
+                    seen.add(comm.lower())
+                    suggestions.append({
+                        'text': comm,
+                        'type': 'community',
+                        'icon': 'building',
+                        'subtext': 'Community'
+                    })
+
+    # Limit to 8 total suggestions
+    return jsonify({
+        'query': query,
+        'suggestions': suggestions[:8]
+    })
+
+
 # =============================================================================
 # MAIN
 # =============================================================================

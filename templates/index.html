@@ -234,6 +234,104 @@
             cursor: not-allowed;
         }
 
+        /* Autocomplete Dropdown */
+        .autocomplete-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .autocomplete-dropdown.show {
+            display: block;
+        }
+
+        .autocomplete-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.active {
+            background: var(--primary-light);
+        }
+
+        .autocomplete-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .autocomplete-icon.person {
+            background: #E0E7FF;
+            color: #4F46E5;
+        }
+
+        .autocomplete-icon.address {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .autocomplete-icon.community {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .autocomplete-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .autocomplete-main {
+            font-weight: 500;
+            color: var(--gray-800);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .autocomplete-sub {
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .autocomplete-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--gray-500);
+            font-size: 0.875rem;
+        }
+
+        .autocomplete-loading i {
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
         /* Search Type Pills */
         .search-types {
             display: flex;
@@ -840,6 +938,7 @@
                 <button class="search-btn" id="searchBtn">
                     <i class="fas fa-arrow-right"></i> Search
                 </button>
+                <div class="autocomplete-dropdown" id="autocompleteDropdown"></div>
             </div>
 
             <div class="search-types">
@@ -922,6 +1021,8 @@
         // State
         let currentSearchType = 'auto';
         let isLoading = false;
+        let suggestDebounceTimer = null;
+        let activeAutocompleteIndex = -1;
 
         // DOM Elements
         const searchInput = document.getElementById('searchInput');
@@ -936,6 +1037,7 @@
         const resultsContent = document.getElementById('resultsContent');
         const statusIndicator = document.getElementById('statusIndicator');
         const toast = document.getElementById('toast');
+        const autocompleteDropdown = document.getElementById('autocompleteDropdown');
 
         // Check API status on load
         async function checkStatus() {
@@ -1199,14 +1301,166 @@
             }, 3000);
         }
 
+        // Autocomplete functions
+        async function fetchSuggestions(query) {
+            if (query.length < 2) {
+                hideAutocomplete();
+                return;
+            }
+
+            // Show loading
+            autocompleteDropdown.innerHTML = `
+                <div class="autocomplete-loading">
+                    <i class="fas fa-spinner"></i> Searching...
+                </div>
+            `;
+            autocompleteDropdown.classList.add('show');
+
+            try {
+                const resp = await fetch(`/api/suggest?q=${encodeURIComponent(query)}`);
+                const data = await resp.json();
+
+                if (data.suggestions && data.suggestions.length > 0) {
+                    renderSuggestions(data.suggestions);
+                } else {
+                    hideAutocomplete();
+                }
+            } catch (e) {
+                hideAutocomplete();
+            }
+        }
+
+        function renderSuggestions(suggestions) {
+            activeAutocompleteIndex = -1;
+            let html = '';
+
+            suggestions.forEach((s, i) => {
+                html += `
+                    <div class="autocomplete-item" data-index="${i}" data-text="${escapeHtml(s.text)}" data-type="${s.type}">
+                        <div class="autocomplete-icon ${s.type}">
+                            <i class="fas fa-${s.icon}"></i>
+                        </div>
+                        <div class="autocomplete-text">
+                            <div class="autocomplete-main">${escapeHtml(s.text)}</div>
+                            ${s.subtext ? `<div class="autocomplete-sub">${escapeHtml(s.subtext)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            autocompleteDropdown.innerHTML = html;
+            autocompleteDropdown.classList.add('show');
+
+            // Add click handlers to items
+            autocompleteDropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', () => selectSuggestion(item));
+            });
+        }
+
+        function selectSuggestion(item) {
+            const text = item.dataset.text;
+            const type = item.dataset.type;
+
+            searchInput.value = text;
+            hideAutocomplete();
+
+            // Auto-set search type based on suggestion type
+            let searchType = 'auto';
+            if (type === 'community') searchType = 'community';
+            else if (type === 'address') searchType = 'address';
+
+            // Update pills
+            typePills.forEach(p => {
+                p.classList.toggle('active', p.dataset.type === searchType);
+            });
+            currentSearchType = searchType;
+            delinquentToggle.style.display = searchType === 'community' ? 'flex' : 'none';
+
+            // Execute search
+            search(text, searchType);
+        }
+
+        function hideAutocomplete() {
+            autocompleteDropdown.classList.remove('show');
+            autocompleteDropdown.innerHTML = '';
+            activeAutocompleteIndex = -1;
+        }
+
+        function navigateAutocomplete(direction) {
+            const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+            if (items.length === 0) return;
+
+            // Remove active from current
+            if (activeAutocompleteIndex >= 0 && items[activeAutocompleteIndex]) {
+                items[activeAutocompleteIndex].classList.remove('active');
+            }
+
+            // Calculate new index
+            if (direction === 'down') {
+                activeAutocompleteIndex = (activeAutocompleteIndex + 1) % items.length;
+            } else {
+                activeAutocompleteIndex = activeAutocompleteIndex <= 0 ? items.length - 1 : activeAutocompleteIndex - 1;
+            }
+
+            // Add active to new
+            items[activeAutocompleteIndex].classList.add('active');
+            items[activeAutocompleteIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        // Debounced input handler
+        function handleSearchInput() {
+            const query = searchInput.value.trim();
+
+            // Clear previous timer
+            if (suggestDebounceTimer) {
+                clearTimeout(suggestDebounceTimer);
+            }
+
+            // Debounce - wait 300ms after typing stops
+            suggestDebounceTimer = setTimeout(() => {
+                fetchSuggestions(query);
+            }, 300);
+        }
+
         // Event Listeners
         searchBtn.addEventListener('click', () => {
+            hideAutocomplete();
             search(searchInput.value);
         });
 
-        searchInput.addEventListener('keypress', (e) => {
+        // Input event for autocomplete (debounced)
+        searchInput.addEventListener('input', handleSearchInput);
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const isDropdownVisible = autocompleteDropdown.classList.contains('show');
+
             if (e.key === 'Enter') {
-                search(searchInput.value);
+                e.preventDefault();
+                if (isDropdownVisible && activeAutocompleteIndex >= 0) {
+                    const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+                    if (items[activeAutocompleteIndex]) {
+                        selectSuggestion(items[activeAutocompleteIndex]);
+                    }
+                } else {
+                    hideAutocomplete();
+                    search(searchInput.value);
+                }
+            } else if (e.key === 'ArrowDown' && isDropdownVisible) {
+                e.preventDefault();
+                navigateAutocomplete('down');
+            } else if (e.key === 'ArrowUp' && isDropdownVisible) {
+                e.preventDefault();
+                navigateAutocomplete('up');
+            } else if (e.key === 'Escape') {
+                hideAutocomplete();
+            }
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+                hideAutocomplete();
             }
         });
 
