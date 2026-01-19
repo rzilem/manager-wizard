@@ -881,6 +881,23 @@
             text-decoration: underline;
         }
 
+        /* Email - no wrap, show full address */
+        .detail-value.email-value {
+            word-break: normal;
+            white-space: nowrap;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        .detail-value.email-value::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .detail-value.email-value::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: 2px;
+        }
+
         .card-actions {
             display: flex;
             gap: 0.75rem;
@@ -2263,7 +2280,7 @@
                             </div>
                             <div class="detail-content">
                                 <div class="detail-label">Email</div>
-                                <div class="detail-value">${emailLink}</div>
+                                <div class="detail-value email-value">${emailLink}</div>
                             </div>
                         </div>
                     </div>
