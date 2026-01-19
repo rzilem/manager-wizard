@@ -576,6 +576,76 @@
             color: #92400E;
         }
 
+        .badge-attorney {
+            background: #7C2D12;
+            color: white;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+        }
+
+        /* Attorney Warning Card */
+        .homeowner-card.status-attorney {
+            border: 2px solid #DC2626;
+            background: #FEF2F2;
+        }
+
+        .homeowner-card.status-attorney::before {
+            background: linear-gradient(180deg, #DC2626 0%, #7C2D12 100%);
+            width: 6px;
+        }
+
+        .attorney-warning {
+            background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .attorney-warning-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .attorney-warning-text {
+            font-size: 0.875rem;
+            opacity: 0.95;
+            margin-bottom: 12px;
+        }
+
+        .attorney-contact {
+            background: rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .attorney-name {
+            font-weight: 600;
+            font-size: 0.9375rem;
+        }
+
+        .attorney-phone {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .attorney-phone a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .attorney-phone a:hover {
+            text-decoration: underline;
+        }
+
         /* Enhanced Card Sections */
         .card-tags {
             display: flex;
@@ -1277,10 +1347,41 @@
             });
         }
 
+        // Attorney phone lookup
+        const ATTORNEY_PHONES = {
+            'Niemann & Niemann': '(512) 474-6901',
+            'Cagle Pugh': '(737) 261-0600',
+            'Roberts Markel Weinberg Butler Hailey': '(713) 840-1666',
+            'Winstead': '(214) 745-5400',
+            'Willatt & Flickinger': '(512) 476-6604'
+        };
+
+        function getAttorneyPhone(provider) {
+            if (!provider) return null;
+            for (const [name, phone] of Object.entries(ATTORNEY_PHONES)) {
+                if (provider.toLowerCase().includes(name.toLowerCase())) {
+                    return phone;
+                }
+            }
+            return null;
+        }
+
+        // Check if account is with attorney
+        function isAttorneyAccount(status) {
+            if (!status) return false;
+            const lower = status.toLowerCase();
+            return lower.includes('attorney') || lower.includes('with attorney') || lower.includes('pmt plan - attorney');
+        }
+
         // Render single card
         function renderCard(h) {
+            const isAttorney = isAttorneyAccount(h.collection_status);
+            const attorneyPhone = getAttorneyPhone(h.collection_provider);
+
             let cardClass = 'homeowner-card';
-            if (h.collection_indicator === 'collections') {
+            if (isAttorney) {
+                cardClass += ' status-attorney';
+            } else if (h.collection_indicator === 'collections') {
                 cardClass += ' status-collections';
             } else if (h.balance_status === 'owed') {
                 cardClass += ' status-owed';
@@ -1289,7 +1390,9 @@
             }
 
             let statusBadge = '';
-            if (h.collection_indicator === 'collections') {
+            if (isAttorney) {
+                statusBadge = '<span class="status-badge badge-attorney">⚠️ ATTORNEY</span>';
+            } else if (h.collection_indicator === 'collections') {
                 statusBadge = '<span class="status-badge badge-collections">In Collections</span>';
             } else if (h.collection_indicator === '60_days') {
                 statusBadge = '<span class="status-badge badge-60days">60+ Days</span>';
@@ -1330,9 +1433,9 @@
                 tagsHtml += '</div>';
             }
 
-            // Build financial section (last payment)
+            // Build financial section (last payment) - HIDE for attorney accounts
             let financialHtml = '';
-            if (h.last_payment) {
+            if (h.last_payment && !isAttorney) {
                 financialHtml = `
                     <div class="card-financial">
                         <div class="financial-item">
@@ -1346,6 +1449,34 @@
                         <div class="financial-item">
                             <div class="financial-value">${h.last_payment.date}</div>
                             <div class="financial-label">Payment Date</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build attorney warning banner
+            let attorneyWarningHtml = '';
+            if (isAttorney) {
+                const providerName = h.collection_provider || 'Collection Attorney';
+                const phone = attorneyPhone || 'Contact PS Property Management';
+                const phoneHref = attorneyPhone ? `tel:${attorneyPhone.replace(/[^\d]/g, '')}` : '#';
+
+                attorneyWarningHtml = `
+                    <div class="attorney-warning">
+                        <div class="attorney-warning-title">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            ACCOUNT WITH ATTORNEY
+                        </div>
+                        <div class="attorney-warning-text">
+                            This account has been referred to an attorney for collections.<br>
+                            <strong>Do NOT discuss balance or payment details with the homeowner.</strong>
+                        </div>
+                        <div class="attorney-contact">
+                            <div class="attorney-name">${escapeHtml(providerName)}</div>
+                            <div class="attorney-phone">
+                                <i class="fas fa-phone"></i>
+                                <a href="${phoneHref}">${escapeHtml(phone)}</a>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1382,6 +1513,13 @@
                 extraContactsHtml += '</div>';
             }
 
+            // Hide balance in header for attorney accounts
+            const balanceHeaderHtml = isAttorney ? '' : `
+                        <div class="card-balance">
+                            <div class="balance-amount ${balanceClass}">${h.balance_display}</div>
+                            <div class="balance-label">Balance</div>
+                        </div>`;
+
             return `
                 <div class="${cardClass}">
                     <div class="card-header">
@@ -1389,11 +1527,9 @@
                             ${escapeHtml(h.owner_name)}
                             ${statusBadge}
                         </div>
-                        <div class="card-balance">
-                            <div class="balance-amount ${balanceClass}">${h.balance_display}</div>
-                            <div class="balance-label">Balance</div>
-                        </div>
+                        ${balanceHeaderHtml}
                     </div>
+                    ${attorneyWarningHtml}
                     ${tagsHtml}
 
                     <div class="card-details">
