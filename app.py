@@ -22,12 +22,17 @@ DATAVERSE_CLIENT_ID = os.environ.get('DATAVERSE_CLIENT_ID', '7b533f6b-b4fe-4355-
 DATAVERSE_CLIENT_SECRET = os.environ.get('DATAVERSE_CLIENT_SECRET', '')
 DATAVERSE_TENANT_ID = os.environ.get('DATAVERSE_TENANT_ID', '2ddb1df5-ce39-448e-86d2-a6b2184ac8a4')
 
-TABLE_NAME = 'cr258_hoa_homeowner_copilots'
+# Use main homeowners table (has all fields) instead of lean copilot table
+TABLE_NAME = 'cr258_hoa_homeowners'
 COLUMNS = [
     'cr258_owner_name', 'cr258_accountnumber', 'cr258_property_address',
     'cr258_assoc_name', 'cr258_balance', 'cr258_creditbalance',
     'cr258_primaryphone', 'cr258_primaryemail', 'cr258_collectionstatus',
-    'cr258_vantacaurl'
+    'cr258_vantacaurl',
+    # Additional fields for enhanced cards
+    'cr258_allphones', 'cr258_allemails', 'cr258_tenantname',
+    'cr258_collprovider', 'cr258_lotnumber', 'cr258_unitnumber',
+    'cr258_tags', 'cr258_lastpaymentdate', 'cr258_lastpaymentamount'
 ]
 
 # Token cache
@@ -127,6 +132,43 @@ def format_homeowner(rec):
     elif status == '30 Days':
         collection_indicator = '30_days'
 
+    # Format last payment info
+    last_payment_date = rec.get('cr258_lastpaymentdate')
+    last_payment_amount = rec.get('cr258_lastpaymentamount')
+    last_payment = None
+    if last_payment_date and last_payment_amount:
+        # Format date nicely
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(last_payment_date.replace('Z', '+00:00'))
+            date_str = dt.strftime('%b %d, %Y')
+            last_payment = {
+                'date': date_str,
+                'amount': f"${last_payment_amount:,.2f}",
+                'raw_date': last_payment_date,
+                'raw_amount': last_payment_amount
+            }
+        except:
+            last_payment = {
+                'date': last_payment_date,
+                'amount': f"${last_payment_amount:,.2f}" if last_payment_amount else 'N/A'
+            }
+
+    # Parse tags into list
+    tags_str = rec.get('cr258_tags') or ''
+    tags = [t.strip() for t in tags_str.split(',') if t.strip()] if tags_str else []
+
+    # Build unit/lot display
+    lot = rec.get('cr258_lotnumber') or ''
+    unit = rec.get('cr258_unitnumber') or ''
+    unit_lot = None
+    if unit and lot:
+        unit_lot = f"Unit {unit}, Lot {lot}"
+    elif unit:
+        unit_lot = f"Unit {unit}"
+    elif lot:
+        unit_lot = f"Lot {lot}"
+
     return {
         'owner_name': rec.get('cr258_owner_name', 'Unknown'),
         'property_address': rec.get('cr258_property_address', 'N/A'),
@@ -138,8 +180,15 @@ def format_homeowner(rec):
         'balance_status': balance_status,
         'collection_status': status,
         'collection_indicator': collection_indicator,
+        'collection_provider': rec.get('cr258_collprovider') or None,
         'phone': rec.get('cr258_primaryphone') or 'N/A',
         'email': rec.get('cr258_primaryemail') or 'N/A',
+        'all_phones': rec.get('cr258_allphones') or None,
+        'all_emails': rec.get('cr258_allemails') or None,
+        'tenant_name': rec.get('cr258_tenantname') or None,
+        'unit_lot': unit_lot,
+        'tags': tags,
+        'last_payment': last_payment,
         'vantaca_url': rec.get('cr258_vantacaurl') or None
     }
 

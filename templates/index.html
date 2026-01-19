@@ -576,6 +576,116 @@
             color: #92400E;
         }
 
+        /* Enhanced Card Sections */
+        .card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .tag-badge {
+            font-size: 0.6875rem;
+            padding: 3px 8px;
+            border-radius: 100px;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            font-weight: 500;
+        }
+
+        .tag-badge.tenant {
+            background: #DBEAFE;
+            color: #1D4ED8;
+        }
+
+        .tag-badge.collections-provider {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+
+        .card-financial {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-100);
+        }
+
+        .financial-item {
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .financial-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .financial-value.positive {
+            color: var(--success);
+        }
+
+        .financial-value.negative {
+            color: var(--danger);
+        }
+
+        .financial-label {
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+
+        .card-extra {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--gray-200);
+        }
+
+        .extra-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            color: var(--gray-600);
+            margin-bottom: 6px;
+        }
+
+        .extra-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .extra-row i {
+            width: 16px;
+            color: var(--gray-400);
+        }
+
+        .extra-label {
+            font-weight: 500;
+            color: var(--gray-500);
+        }
+
+        .all-contacts {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 4px;
+            padding-left: 40px;
+        }
+
+        .all-contacts a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .all-contacts a:hover {
+            text-decoration: underline;
+        }
+
         .card-balance {
             text-align: right;
         }
@@ -1180,7 +1290,7 @@
 
             let statusBadge = '';
             if (h.collection_indicator === 'collections') {
-                statusBadge = '<span class="status-badge badge-collections">Collections</span>';
+                statusBadge = '<span class="status-badge badge-collections">In Collections</span>';
             } else if (h.collection_indicator === '60_days') {
                 statusBadge = '<span class="status-badge badge-60days">60+ Days</span>';
             } else if (h.collection_indicator === '30_days') {
@@ -1199,6 +1309,79 @@
                 ? `<a href="mailto:${h.email}">${escapeHtml(h.email)}</a>`
                 : 'N/A';
 
+            // Build tags section
+            let tagsHtml = '';
+            if (h.tenant_name || h.collection_provider || (h.tags && h.tags.length > 0) || h.unit_lot) {
+                tagsHtml = '<div class="card-tags">';
+                if (h.tenant_name) {
+                    tagsHtml += `<span class="tag-badge tenant"><i class="fas fa-user-friends"></i> Tenant: ${escapeHtml(h.tenant_name)}</span>`;
+                }
+                if (h.collection_provider) {
+                    tagsHtml += `<span class="tag-badge collections-provider"><i class="fas fa-gavel"></i> ${escapeHtml(h.collection_provider)}</span>`;
+                }
+                if (h.unit_lot) {
+                    tagsHtml += `<span class="tag-badge"><i class="fas fa-door-open"></i> ${escapeHtml(h.unit_lot)}</span>`;
+                }
+                if (h.tags && h.tags.length > 0) {
+                    h.tags.forEach(tag => {
+                        tagsHtml += `<span class="tag-badge">${escapeHtml(tag)}</span>`;
+                    });
+                }
+                tagsHtml += '</div>';
+            }
+
+            // Build financial section (last payment)
+            let financialHtml = '';
+            if (h.last_payment) {
+                financialHtml = `
+                    <div class="card-financial">
+                        <div class="financial-item">
+                            <div class="financial-value ${h.balance_status === 'owed' ? 'negative' : (h.balance_status === 'credit' ? 'positive' : '')}">${h.balance_display}</div>
+                            <div class="financial-label">Current Balance</div>
+                        </div>
+                        <div class="financial-item">
+                            <div class="financial-value positive">${h.last_payment.amount}</div>
+                            <div class="financial-label">Last Payment</div>
+                        </div>
+                        <div class="financial-item">
+                            <div class="financial-value">${h.last_payment.date}</div>
+                            <div class="financial-label">Payment Date</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build extra contacts section
+            let extraContactsHtml = '';
+            if ((h.all_phones && h.all_phones !== h.phone) || (h.all_emails && h.all_emails !== h.email)) {
+                extraContactsHtml = '<div class="card-extra">';
+                if (h.all_phones && h.all_phones !== h.phone) {
+                    const phones = h.all_phones.split(';').map(p => p.trim()).filter(p => p);
+                    if (phones.length > 0) {
+                        extraContactsHtml += `
+                            <div class="extra-row">
+                                <i class="fas fa-phone-alt"></i>
+                                <span class="extra-label">All Phones:</span>
+                                ${phones.map(p => `<a href="tel:${p}">${escapeHtml(p)}</a>`).join(', ')}
+                            </div>
+                        `;
+                    }
+                }
+                if (h.all_emails && h.all_emails !== h.email) {
+                    const emails = h.all_emails.split(';').map(e => e.trim()).filter(e => e);
+                    if (emails.length > 0) {
+                        extraContactsHtml += `
+                            <div class="extra-row">
+                                <i class="fas fa-at"></i>
+                                <span class="extra-label">All Emails:</span>
+                                ${emails.map(e => `<a href="mailto:${e}">${escapeHtml(e)}</a>`).join(', ')}
+                            </div>
+                        `;
+                    }
+                }
+                extraContactsHtml += '</div>';
+            }
+
             return `
                 <div class="${cardClass}">
                     <div class="card-header">
@@ -1211,6 +1394,7 @@
                             <div class="balance-label">Balance</div>
                         </div>
                     </div>
+                    ${tagsHtml}
 
                     <div class="card-details">
                         <div class="detail-item">
@@ -1263,6 +1447,9 @@
                             </div>
                         </div>
                     </div>
+
+                    ${financialHtml}
+                    ${extraContactsHtml}
 
                     <div class="card-actions">
                         ${h.vantaca_url ? `
