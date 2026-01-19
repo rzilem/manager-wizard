@@ -1322,13 +1322,47 @@
             gap: 6px;
         }
 
-        .copyable .copy-btn {
+        .copyable .copy-btn,
+        .copyable .text-btn {
             opacity: 0;
             transition: opacity 0.2s;
         }
 
-        .copyable:hover .copy-btn {
+        .copyable:hover .copy-btn,
+        .copyable:hover .text-btn {
             opacity: 1;
+        }
+
+        /* Text Button (CT Text) */
+        .text-btn {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .text-btn:hover {
+            background: #DBEAFE;
+            color: #1D4ED8;
+        }
+
+        .text-btn.copied::after {
+            content: 'Copied for CT Text!';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1D4ED8;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            animation: tooltipFade 1.5s forwards;
         }
 
         /* Recent Searches */
@@ -1946,6 +1980,18 @@
                     copyToClipboard(text, btn);
                 });
             });
+
+            // Attach text button handlers (CT Text)
+            resultsContent.querySelectorAll('.text-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const phone = btn.dataset.phone;
+                    navigator.clipboard.writeText(phone).then(() => {
+                        btn.classList.add('copied');
+                        setTimeout(() => btn.classList.remove('copied'), 1500);
+                    });
+                });
+            });
         }
 
         // Generate search suggestions for no results
@@ -2034,9 +2080,13 @@
             let balanceClass = getBalanceClass(h.balance);
             if (h.balance_status === 'credit') balanceClass = 'balance-credit';
 
-            // Build phone with copy button
+            // Build phone with copy and text buttons
             const phoneLink = h.phone !== 'N/A'
-                ? `<span class="copyable"><a href="tel:${h.phone}">${highlightText(h.phone, currentQuery)}</a><button class="copy-btn" data-copy="${escapeHtml(h.phone)}" title="Copy phone"><i class="fas fa-copy"></i></button></span>`
+                ? `<span class="copyable">
+                    <a href="tel:${h.phone}">${highlightText(h.phone, currentQuery)}</a>
+                    <button class="copy-btn" data-copy="${escapeHtml(h.phone)}" title="Copy phone"><i class="fas fa-copy"></i></button>
+                    <button class="text-btn" data-phone="${escapeHtml(h.phone)}" title="Copy for CT Text"><i class="fas fa-sms"></i></button>
+                   </span>`
                 : 'N/A';
 
             // Build email with copy button
