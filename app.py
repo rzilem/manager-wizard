@@ -41,7 +41,9 @@ COLUMNS = [
     # Additional fields for enhanced cards
     'cr258_allphones', 'cr258_allemails', 'cr258_tenantname',
     'cr258_collprovider', 'cr258_lotnumber', 'cr258_unitnumber',
-    'cr258_tags', 'cr258_lastpaymentdate', 'cr258_lastpaymentamount'
+    'cr258_tags', 'cr258_lastpaymentdate', 'cr258_lastpaymentamount',
+    # Sync timestamp
+    'modifiedon'
 ]
 
 # Token cache
@@ -320,6 +322,18 @@ def format_homeowner(rec):
     elif lot:
         unit_lot = f"Lot {lot}"
 
+    # Format last sync timestamp from Dataverse
+    modified_on = rec.get('modifiedon')
+    last_synced = None
+    last_synced_display = None
+    if modified_on:
+        try:
+            sync_dt = datetime.fromisoformat(modified_on.replace('Z', '+00:00'))
+            last_synced = modified_on
+            last_synced_display = sync_dt.strftime('%b %d, %Y at %I:%M %p')
+        except:
+            last_synced_display = modified_on
+
     return {
         'owner_name': rec.get('cr258_owner_name', 'Unknown'),
         'property_address': rec.get('cr258_property_address', 'N/A'),
@@ -340,7 +354,9 @@ def format_homeowner(rec):
         'unit_lot': unit_lot,
         'tags': tags,
         'last_payment': last_payment,
-        'vantaca_url': rec.get('cr258_vantacaurl') or None
+        'vantaca_url': rec.get('cr258_vantacaurl') or None,
+        'last_synced': last_synced,
+        'last_synced_display': last_synced_display
     }
 
 
