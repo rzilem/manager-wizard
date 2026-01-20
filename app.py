@@ -322,15 +322,19 @@ def format_homeowner(rec):
     elif lot:
         unit_lot = f"Lot {lot}"
 
-    # Format last sync timestamp from Dataverse
+    # Format last sync timestamp from Dataverse (convert UTC to Central Time)
     modified_on = rec.get('modifiedon')
     last_synced = None
     last_synced_display = None
     if modified_on:
         try:
+            from zoneinfo import ZoneInfo
             sync_dt = datetime.fromisoformat(modified_on.replace('Z', '+00:00'))
+            # Convert to Central Time
+            central_tz = ZoneInfo('America/Chicago')
+            sync_dt_central = sync_dt.astimezone(central_tz)
             last_synced = modified_on
-            last_synced_display = sync_dt.strftime('%b %d, %Y at %I:%M %p')
+            last_synced_display = sync_dt_central.strftime('%b %d, %Y at %I:%M %p CT')
         except:
             last_synced_display = modified_on
 
