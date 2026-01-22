@@ -510,25 +510,20 @@ def search_azure_documents(query, community=None, top=10):
 
     if not AZURE_SEARCH_API_KEY:
         logger.warning("Azure Search not configured")
-        return []
+        return {'documents': [], 'answers': [], 'count': 0}
 
-    url = f"{AZURE_SEARCH_ENDPOINT}/indexes/{AZURE_SEARCH_INDEX}/docs/search?api-version=2024-05-01-preview"
+    url = f"{AZURE_SEARCH_ENDPOINT}/indexes/{AZURE_SEARCH_INDEX}/docs/search?api-version=2023-11-01"
 
     # Build search query
     search_text = query
     if community:
-        search_text = f"{query} {community}"
+        search_text = f"{query} AND \"{community}\""
 
     payload = {
         "search": search_text,
-        "queryType": "semantic",
-        "semanticConfiguration": "default",
+        "queryType": "simple",
         "top": top,
-        "select": "metadata_storage_name,metadata_storage_path,metadata_storage_last_modified,content",
-        "captions": "extractive",
-        "answers": "extractive|count-3",
-        "highlightPreTag": "<mark>",
-        "highlightPostTag": "</mark>"
+        "select": "metadata_spo_item_name,metadata_spo_item_path,metadata_spo_item_weburi"
     }
 
     headers = {
@@ -537,6 +532,7 @@ def search_azure_documents(query, community=None, top=10):
     }
 
     try:
+        logger.info(f"Azure Search query: {search_text}")
         resp = requests.post(url, json=payload, headers=headers, timeout=15)
         if resp.status_code == 200:
             data = resp.json()
@@ -548,7 +544,7 @@ def search_azure_documents(query, community=None, top=10):
                 doc_type = 'general'
                 doc_type_info = {'icon': 'file-alt', 'color': '#6b7280', 'label': 'Document'}
 
-                name_lower = (doc.get('metadata_storage_name') or '').lower()
+                name_lower = (doc.get('metadata_spo_item_name') or '').lower()
                 for dtype, info in DOCUMENT_PATTERNS.items():
                     if any(kw in name_lower for kw in info['keywords']):
                         doc_type = dtype
@@ -556,50 +552,51 @@ def search_azure_documents(query, community=None, top=10):
                         break
 
                 # Extract community from path
-                path = doc.get('metadata_storage_path') or ''
+                path = doc.get('metadata_spo_item_path') or ''
                 community_match = re.search(r'/([^/]+)/Association Documents/', path)
                 doc_community = community_match.group(1) if community_match else None
 
                 results.append({
-                    'title': doc.get('metadata_storage_name', 'Unknown'),
+                    'title': doc.get('metadata_spo_item_name', 'Unknown'),
                     'path': path,
+                    'url': doc.get('metadata_spo_item_weburi', ''),
                     'community': doc_community,
                     'doc_type': doc_type,
                     'doc_type_info': doc_type_info,
-                    'last_modified': doc.get('metadata_storage_last_modified'),
-                    'content_snippet': (doc.get('content') or '')[:500],
-                    'captions': doc.get('@search.captions', []),
                     'score': doc.get('@search.score', 0)
                 })
 
-            # Also get semantic answers if available
-            answers = data.get('@search.answers', [])
+            logger.info(f"Azure Search found {len(results)} results")
 
             return {
                 'documents': results,
-                'answers': answers,
+                'answers': [],
                 'count': len(results)
             }
         else:
-            logger.error(f"Azure Search failed: {resp.status_code} - {resp.text[:200]}")
-            return {'documents': [], 'answers': [], 'count': 0}
+            logger.error(f"Azure Search failed: {resp.status_code} - {resp.text[:500]}")
+            return {'documents': [], 'answers': [], 'count': 0, 'error': resp.text[:200]}
     except Exception as e:
         logger.error(f"Azure Search request failed: {e}")
-        return {'documents': [], 'answers': [], 'count': 0}
+        return {'documents': [], 'answers': [], 'count': 0, 'error': str(e)}
 
 
 def extract_answer_with_claude(query, documents, community=None):
-    """Use Claude to extract a structured answer from documents."""
+    """Use Claude to create a helpful response based on found documents."""
     import requests
 
     if not ANTHROPIC_API_KEY or not documents:
         return None
 
-    # Prepare document context
-    doc_context = ""
-    for i, doc in enumerate(documents[:3]):  # Top 3 docs
-        doc_context += f"\n--- Document {i+1}: {doc['title']} ---\n"
-        doc_context += doc.get('content_snippet', '')[:1000]
+    # Prepare document context - we only have metadata, not full content
+    doc_context = "Found relevant documents:\n"
+    for i, doc in enumerate(documents[:5]):  # Top 5 docs
+        doc_context += f"\n{i+1}. {doc['title']}"
+        if doc.get('community'):
+            doc_context += f" (Community: {doc['community']})"
+        doc_context += f"\n   Type: {doc.get('doc_type_info', {}).get('label', 'Document')}"
+        if doc.get('url'):
+            doc_context += f"\n   URL: {doc['url']}"
         doc_context += "\n"
 
     # Determine what type of info to extract
@@ -672,17 +669,22 @@ def extract_answer_with_claude(query, documents, community=None):
 }"""
     }
 
-    prompt = f"""You are a helpful assistant for PS Property Management. A manager is asking about community rules and policies.
+    prompt = f"""You are a helpful assistant for PS Property Management. A manager is looking for information about community rules and policies.
 
 Question: {query}
 {f'Community: {community}' if community else ''}
 
-Here are the relevant documents:
 {doc_context}
 
-{extraction_prompts.get(extraction_type, extraction_prompts['general'])}
+Based on the documents found, provide a helpful response in this JSON format:
+{{
+    "summary": "A brief helpful response about what was found and where to look",
+    "documents_found": ["list of most relevant document names"],
+    "suggestion": "Suggestion for what to do next (e.g., 'Open the CC&Rs document to find fence height limits')",
+    "category": "{extraction_type}"
+}}
 
-If the information is not found in the documents, return {{"not_found": true, "suggestion": "what they should do instead"}}.
+Be helpful and direct. If specific documents were found, tell them which one is most likely to have their answer.
 Return ONLY valid JSON, no other text."""
 
     try:
