@@ -387,43 +387,115 @@
             gap: 1rem;
         }
 
-        /* AI Answer Card */
+        /* AI Answer Card - HERO STYLE */
         .ai-answer-card {
-            background: var(--primary-light);
-            border: 1px solid var(--primary);
-            border-radius: var(--radius);
-            padding: 1.25rem;
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 2rem;
             margin-bottom: 1.5rem;
+            box-shadow: 0 10px 40px rgba(5, 150, 105, 0.3);
         }
 
         .ai-answer-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 1rem;
+            gap: 12px;
+            margin-bottom: 1.25rem;
         }
 
         .ai-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--primary);
-            border-radius: var(--radius-sm);
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            border-radius: var(--radius);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 16px;
+            font-size: 20px;
         }
 
         .ai-answer-title {
             font-weight: 700;
-            font-size: 1rem;
-            color: var(--gray-900);
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.9);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .ai-answer-subtitle {
-            font-size: 0.75rem;
-            color: var(--gray-500);
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* The main answer - BIG and BOLD */
+        .ai-main-answer {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: white;
+            line-height: 1.3;
+            margin-bottom: 1rem;
+        }
+
+        /* Source Document Section */
+        .ai-source-section {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .ai-source-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .ai-source-doc {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 1rem 1.25rem;
+            background: rgba(255,255,255,0.15);
+            border-radius: var(--radius);
+            flex-wrap: wrap;
+        }
+
+        .ai-source-doc > i {
+            font-size: 1.5rem;
+            color: white;
+            opacity: 0.9;
+        }
+
+        .ai-source-doc > span {
+            flex: 1;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            min-width: 150px;
+        }
+
+        .ai-source-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: white;
+            color: #047857;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .ai-source-btn:hover {
+            background: #f0fdf4;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         .ai-answer-content {
@@ -431,6 +503,9 @@
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1rem;
             margin-bottom: 1rem;
+            background: rgba(255,255,255,0.1);
+            padding: 1rem;
+            border-radius: var(--radius);
         }
 
         .ai-data-item {
@@ -442,23 +517,23 @@
         .ai-data-label {
             font-size: 0.7rem;
             font-weight: 600;
-            color: var(--gray-500);
+            color: rgba(255,255,255,0.7);
             text-transform: uppercase;
             letter-spacing: 0.03em;
         }
 
         .ai-data-value {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--gray-900);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
         }
 
         .ai-summary {
-            font-size: 0.9rem;
-            color: var(--gray-700);
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.9);
             line-height: 1.6;
             padding-top: 1rem;
-            border-top: 1px dashed var(--primary);
+            border-top: 1px solid rgba(255,255,255,0.2);
         }
 
         .ai-tags {
@@ -469,13 +544,56 @@
         }
 
         .ai-tag {
-            padding: 3px 8px;
-            background: white;
-            border: 1px solid var(--primary);
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.2);
+            border: none;
             border-radius: var(--radius-full);
-            font-size: 0.7rem;
-            color: var(--primary);
+            font-size: 0.75rem;
+            color: white;
             font-weight: 500;
+        }
+
+        /* Collapsible Documents Section */
+        .documents-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-bottom: 1rem;
+            transition: all 0.15s ease;
+        }
+
+        .documents-toggle:hover {
+            background: var(--gray-200);
+        }
+
+        .documents-toggle-text {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-600);
+        }
+
+        .documents-toggle-icon {
+            transition: transform 0.2s ease;
+        }
+
+        .documents-toggle.expanded .documents-toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .documents-collapsible {
+            display: none;
+        }
+
+        .documents-collapsible.expanded {
+            display: block;
         }
 
         /* Homeowner Card */
@@ -515,6 +633,26 @@
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 0.75rem;
+            position: relative;
+        }
+
+        .copy-card-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: transparent;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            opacity: 0.5;
+            transition: all 0.2s ease;
+        }
+
+        .copy-card-btn:hover {
+            opacity: 1;
+            color: var(--primary);
         }
 
         .card-name {
@@ -1296,7 +1434,7 @@
             `;
 
             if (hasAiAnswer) {
-                html += renderAiAnswerCard(data.ai_answer, data.community_detected);
+                html += renderAiAnswerCard(data.ai_answer, data.community_detected, data.documents);
             }
 
             if (hasHomeowners) {
@@ -1316,7 +1454,8 @@
                 `;
             }
 
-            if (hasDocuments) {
+            if (hasDocuments && !hasAiAnswer) {
+                // Only show documents list if there's NO AI answer
                 html += `
                     <div class="results-section">
                         <div class="section-header">
@@ -1336,91 +1475,105 @@
             resultsContent.innerHTML = html;
         }
 
-        function renderAiAnswerCard(aiAnswer, community) {
+        function toggleDocuments(element) {
+            element.classList.toggle('expanded');
+            const collapsible = element.nextElementSibling;
+            collapsible.classList.toggle('expanded');
+        }
+
+        function renderAiAnswerCard(aiAnswer, community, documents) {
             const extracted = aiAnswer.extracted;
             const type = aiAnswer.extraction_type;
 
-            if (extracted.not_found) {
+            // Check if we have a real answer or just "not found"
+            const answerLower = (extracted.answer || '').toLowerCase();
+            const hasNoAnswer = !extracted.answer ||
+                answerLower.includes('not found') ||
+                answerLower.includes('no specific') ||
+                answerLower.includes('could not find') ||
+                answerLower.includes('no pool') ||
+                answerLower.includes('no pet') ||
+                answerLower.includes('no parking') ||
+                answerLower.includes('no fence') ||
+                answerLower.includes('not available') ||
+                answerLower.includes('unable to find') ||
+                answerLower.includes('unable to determine') ||
+                answerLower.includes('cannot determine') ||
+                answerLower.includes('no information') ||
+                answerLower.includes('no mention') ||
+                answerLower.includes('does not mention') ||
+                answerLower.includes('does not address') ||
+                answerLower.includes('does not contain') ||
+                answerLower.startsWith('no ') ||
+                answerLower.includes('additional documents') ||
+                answerLower.includes('more specific search');
+
+            if (hasNoAnswer) {
                 return `
-                    <div class="ai-answer-card" style="background: var(--warning-light); border-color: var(--warning);">
+                    <div class="ai-answer-card" style="background: linear-gradient(135deg, #d97706 0%, #b45309 100%); box-shadow: 0 10px 40px rgba(217, 119, 6, 0.3);">
                         <div class="ai-answer-header">
-                            <div class="ai-icon" style="background: var(--warning);">
-                                <i class="fas fa-question"></i>
+                            <div class="ai-icon">
+                                <i class="fas fa-search"></i>
                             </div>
                             <div>
-                                <div class="ai-answer-title">Information Not Found</div>
-                                <div class="ai-answer-subtitle">Couldn't find a specific answer in the documents</div>
+                                <div class="ai-answer-title">No Specific Answer Found</div>
+                                <div class="ai-answer-subtitle">${community ? `For ${escapeHtml(community)}` : 'In available documents'}</div>
                             </div>
                         </div>
-                        <div class="ai-summary" style="border-color: var(--warning);">${escapeHtml(extracted.suggestion || 'Try searching with different keywords.')}</div>
+                        <div class="ai-main-answer" style="font-size: 1.25rem;">${escapeHtml(extracted.answer || 'Could not find specific information in the indexed documents.')}</div>
+                        <div class="ai-summary">Try a different search term, or the information may not be in the indexed documents yet.</div>
                     </div>
                 `;
             }
 
-            let contentHtml = '';
+            // We have an answer! Show it prominently
+            const mainAnswer = extracted.answer || extracted.summary || '';
+            const sourceName = extracted.source || (extracted.documents_found && extracted.documents_found[0]) || '';
 
-            if (type === 'fence' && extracted.max_height_back) {
-                contentHtml = `
-                    <div class="ai-answer-content">
-                        <div class="ai-data-item">
-                            <span class="ai-data-label">Max Height (Backyard)</span>
-                            <span class="ai-data-value">${escapeHtml(extracted.max_height_back)}</span>
-                        </div>
-                        <div class="ai-data-item">
-                            <span class="ai-data-label">Max Height (Front)</span>
-                            <span class="ai-data-value">${escapeHtml(extracted.max_height_front || 'N/A')}</span>
-                        </div>
-                        <div class="ai-data-item">
-                            <span class="ai-data-label">ARC Required</span>
-                            <span class="ai-data-value">${extracted.arc_required ? 'Yes' : 'No'}</span>
-                        </div>
-                    </div>
-                    ${extracted.approved_materials ? `
-                        <div class="ai-tags">
-                            ${extracted.approved_materials.map(m => `<span class="ai-tag">${escapeHtml(m)}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                `;
-            } else if (type === 'pool' && extracted.hours) {
-                contentHtml = `
-                    <div class="ai-answer-content">
-                        <div class="ai-data-item">
-                            <span class="ai-data-label">Pool Hours</span>
-                            <span class="ai-data-value">${escapeHtml(extracted.hours)}</span>
-                        </div>
-                        <div class="ai-data-item">
-                            <span class="ai-data-label">Guest Policy</span>
-                            <span class="ai-data-value">${escapeHtml(extracted.guest_policy || 'See rules')}</span>
-                        </div>
-                    </div>
-                    ${extracted.key_rules ? `
-                        <div class="ai-tags">
-                            ${extracted.key_rules.map(r => `<span class="ai-tag">${escapeHtml(r)}</span>`).join('')}
-                        </div>
-                    ` : ''}
-                `;
-            } else if (extracted.documents_found) {
-                contentHtml = `
-                    <div class="ai-tags">
-                        ${extracted.documents_found.map(d => `<span class="ai-tag">${escapeHtml(d)}</span>`).join('')}
-                    </div>
-                `;
+            // Find the source document URL from the documents array
+            let sourceUrl = '';
+            if (sourceName && documents) {
+                const sourceDoc = documents.find(d =>
+                    d.title && d.title.toLowerCase().includes(sourceName.toLowerCase().replace('.pdf', ''))
+                );
+                if (sourceDoc && sourceDoc.url) {
+                    sourceUrl = sourceDoc.url;
+                }
             }
 
             return `
                 <div class="ai-answer-card">
                     <div class="ai-answer-header">
                         <div class="ai-icon">
-                            <i class="fas fa-robot"></i>
+                            <i class="fas fa-check-circle"></i>
                         </div>
                         <div>
-                            <div class="ai-answer-title">AI-Extracted Answer</div>
+                            <div class="ai-answer-title">Answer Found</div>
                             <div class="ai-answer-subtitle">${community ? `For ${escapeHtml(community)}` : 'From community documents'}</div>
                         </div>
                     </div>
-                    ${contentHtml}
-                    ${extracted.summary ? `<div class="ai-summary">${escapeHtml(extracted.summary)}</div>` : ''}
-                    ${extracted.suggestion ? `<div class="ai-summary">${escapeHtml(extracted.suggestion)}</div>` : ''}
+                    <div class="ai-main-answer">${escapeHtml(mainAnswer)}</div>
+                    ${extracted.quote ? `
+                        <div class="ai-summary" style="margin-top: 1rem;">
+                            <i class="fas fa-quote-left" style="opacity: 0.5; margin-right: 8px;"></i>
+                            "${escapeHtml(extracted.quote)}"
+                        </div>
+                    ` : ''}
+                    ${sourceName ? `
+                        <div class="ai-source-section">
+                            <div class="ai-source-label">Source Document</div>
+                            <div class="ai-source-doc">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>${escapeHtml(sourceName)}</span>
+                                ${sourceUrl ? `
+                                    <a href="${escapeHtml(sourceUrl)}" target="_blank" class="ai-source-btn">
+                                        <i class="fas fa-external-link-alt"></i>
+                                        View in SharePoint
+                                    </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }
@@ -1519,6 +1672,13 @@
                 </div>
             `;
 
+            // Subtle copy icon for phone (only if phone exists)
+            const copyPhoneIcon = h.phone && h.phone !== 'N/A' ? `
+                <button class="copy-card-btn" onclick="copyToClipboard('${escapeHtml(h.phone)}')" title="Copy phone number">
+                    <i class="fas fa-copy"></i>
+                </button>
+            ` : '';
+
             return `
                 <div class="${cardClass}">
                     <div class="card-header">
@@ -1527,6 +1687,7 @@
                             <div class="card-community">${escapeHtml(h.community)}</div>
                             ${statusBadge}
                         </div>
+                        ${copyPhoneIcon}
                         ${balanceHeaderHtml}
                     </div>
                     ${attorneyWarningHtml}
@@ -1572,9 +1733,6 @@
                                 <i class="fas fa-external-link-alt"></i> Open in Vantaca
                             </a>
                         ` : ''}
-                        <button class="btn btn-secondary" onclick="copyToClipboard('${escapeHtml(h.phone)}')">
-                            <i class="fas fa-copy"></i> Copy Phone
-                        </button>
                     </div>
                 </div>
             `;
