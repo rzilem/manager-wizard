@@ -1273,8 +1273,10 @@ def search_by_phone(phone, community_filter=None):
 
 
 def search_by_address(address, community_filter=None):
-    """Search by address, with optional community filter."""
+    """Search by address - flexible matching with multi-word support."""
     safe_address = address.replace("'", "''")
+
+    # First try exact contains match
     filter_expr = f"contains(cr258_property_address,'{safe_address}')"
 
     if community_filter:
@@ -1286,8 +1288,22 @@ def search_by_address(address, community_filter=None):
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
+    # If no results and address has multiple parts, try searching for key parts
+    if not results:
+        # Extract street number and key words
+        parts = safe_address.split()
+        if len(parts) >= 2:
+            # Try with just the first part (usually street number) and second part
+            key_parts = parts[:2]
+            conditions = [f"contains(cr258_property_address,'{part}')" for part in key_parts if len(part) > 1]
+            if conditions:
+                filter_expr = ' and '.join(conditions)
+                if community_filter:
+                    filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and ({filter_expr})"
+                results = query_dataverse(filter_expr, top=20)
+
     # Exclude former clients
-    filtered = [r for r in results if not is_excluded_community(r.get('cr258_assoc_name'))]
+    filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
     homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
@@ -1300,15 +1316,25 @@ def search_by_address(address, community_filter=None):
 
 
 def search_by_name(name, community_filter=None):
-    """Search by owner name - flexible partial matching."""
+    """Search by owner name - flexible partial matching with multi-word support."""
     safe_name = name.replace("'", "''")
 
-    # Search owner name field
-    filter_expr = f"contains(cr258_owner_name,'{safe_name}')"
+    # Split name into parts for better matching
+    # "John Smith" should match "John A. Smith", "John D Smith", etc.
+    name_parts = [p.strip() for p in safe_name.split() if len(p.strip()) > 1]
+
+    if len(name_parts) > 1:
+        # Multiple words - search for each part (AND logic)
+        # This handles "John Smith" matching "John D Smith"
+        conditions = [f"contains(cr258_owner_name,'{part}')" for part in name_parts[:3]]  # Max 3 parts
+        filter_expr = ' and '.join(conditions)
+    else:
+        # Single word - simple contains
+        filter_expr = f"contains(cr258_owner_name,'{safe_name}')"
 
     if community_filter:
         safe_community = community_filter.replace("'", "''")
-        filter_expr += f" and contains(cr258_assoc_name,'{safe_community}')"
+        filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and ({filter_expr})"
 
     results = query_dataverse(filter_expr, top=30)
 
@@ -1400,8 +1426,11 @@ def search_by_community(community, delinquent_only=False):
 
 
 def search_by_account(account, community_filter=None):
-    """Search by account number - flexible matching."""
+    """Search by account number - flexible matching with leading zero handling."""
     safe_account = account.replace("'", "''").upper()
+
+    # Strip leading zeros for numeric-only accounts (000123 -> 123)
+    stripped_account = safe_account.lstrip('0') if safe_account.isdigit() else safe_account
 
     # Try exact match first (case-insensitive via upper)
     filter_expr = f"cr258_accountnumber eq '{safe_account}'"
@@ -1417,16 +1446,20 @@ def search_by_account(account, community_filter=None):
 
     if not results:
         # Try contains match (partial account number)
-        filter_expr = f"contains(cr258_accountnumber,'{safe_account}')"
+        # Use stripped version if different
+        search_term = stripped_account if stripped_account != safe_account else safe_account
+        filter_expr = f"contains(cr258_accountnumber,'{search_term}')"
         if community_filter:
             filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
         results = query_dataverse(filter_expr, top=20)
 
-    # If still no results and query is just digits, try with common prefixes
-    if not results and safe_account.isdigit():
-        common_prefixes = ['FAL', 'AVA', 'CHA', 'HER', 'VIS', 'VIL', 'WES', 'HIL', 'OAK', 'SAG']
+    # If still no results and query is just digits, try with top 3 most common prefixes only
+    # (reduced from 10 to speed up searches)
+    if not results and (safe_account.isdigit() or stripped_account.isdigit()):
+        search_num = stripped_account if stripped_account else safe_account
+        common_prefixes = ['FAL', 'AVA', 'HER']  # Top 3 most common
         for prefix in common_prefixes:
-            test_account = f"{prefix}{safe_account}"
+            test_account = f"{prefix}{search_num}"
             filter_expr = f"cr258_accountnumber eq '{test_account}'"
             if community_filter:
                 filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
@@ -1448,17 +1481,21 @@ def search_by_account(account, community_filter=None):
 
 
 def search_by_unit(unit_query, community_filter=None):
-    """Search by unit or lot number."""
-    # Extract the number from patterns like "unit 5", "lot 12", "#5"
-    match = re.search(r'\d+', unit_query)
+    """Search by unit or lot number - supports numeric and alphanumeric values."""
+    # Extract the value from patterns like "unit 5", "lot 12", "#5", "unit 5A", "lot A"
+    # First try to get alphanumeric (like "5A", "A", "12B")
+    match = re.search(r'(?:unit|lot|apt|suite|#)\s*([A-Za-z0-9]+)', unit_query.lower())
+    if not match:
+        # Fallback to just extracting any alphanumeric sequence
+        match = re.search(r'[A-Za-z0-9]+', unit_query)
     if not match:
         return jsonify({'error': 'Invalid unit/lot number', 'homeowners': [], 'count': 0}), 400
 
-    number = match.group()
-    safe_number = number.replace("'", "''")
+    value = match.group(1) if match.lastindex else match.group()
+    safe_value = value.replace("'", "''").upper()  # Normalize to uppercase
 
     # Build filter to search unit number OR lot number
-    filter_expr = f"(cr258_unitnumber eq '{safe_number}' or cr258_lotnumber eq '{safe_number}')"
+    filter_expr = f"(cr258_unitnumber eq '{safe_value}' or cr258_lotnumber eq '{safe_value}')"
 
     if community_filter:
         safe_community = community_filter.replace("'", "''")
@@ -1471,10 +1508,19 @@ def search_by_unit(unit_query, community_filter=None):
 
     # If no exact match, try contains search
     if not results:
-        filter_expr = f"(contains(cr258_unitnumber,'{safe_number}') or contains(cr258_lotnumber,'{safe_number}'))"
+        filter_expr = f"(contains(cr258_unitnumber,'{safe_value}') or contains(cr258_lotnumber,'{safe_value}'))"
         if community_filter:
             filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
         results = query_dataverse(filter_expr, top=30)
+
+    # If still no results and value has letters, try just the numeric part (5A -> 5)
+    if not results and re.search(r'\d', safe_value):
+        numeric_only = re.sub(r'[^0-9]', '', safe_value)
+        if numeric_only and numeric_only != safe_value:
+            filter_expr = f"(contains(cr258_unitnumber,'{numeric_only}') or contains(cr258_lotnumber,'{numeric_only}'))"
+            if community_filter:
+                filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
+            results = query_dataverse(filter_expr, top=30)
 
     # Exclude former clients
     filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
