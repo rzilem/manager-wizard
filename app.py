@@ -100,6 +100,61 @@ PBI_DATASET_ID = os.environ.get('PBI_DATASET_ID', 'e17e4241-37b7-4d12-a2e8-8f4e6
 
 # Use main homeowners table (has all fields) instead of lean copilot table
 TABLE_NAME = 'cr258_hoa_homeowners'
+
+# =============================================================================
+# ACTIVE COMMUNITIES (Whitelist - only show results from active clients)
+# =============================================================================
+
+# Load active communities from master config
+ACTIVE_COMMUNITIES = []
+ACTIVE_COMMUNITY_NAMES = set()
+
+def load_active_communities():
+    """Load active communities from master config JSON."""
+    global ACTIVE_COMMUNITIES, ACTIVE_COMMUNITY_NAMES
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'communities-master.json')
+    try:
+        with open(config_path, 'r') as f:
+            data = json.load(f)
+            ACTIVE_COMMUNITIES = data.get('communities', [])
+            # Build a set of normalized names for fast lookup
+            for comm in ACTIVE_COMMUNITIES:
+                # Add both full name and short name (lowercase for matching)
+                if comm.get('name'):
+                    ACTIVE_COMMUNITY_NAMES.add(comm['name'].lower())
+                if comm.get('short_name'):
+                    ACTIVE_COMMUNITY_NAMES.add(comm['short_name'].lower())
+            logger.info(f"Loaded {len(ACTIVE_COMMUNITIES)} active communities")
+    except Exception as e:
+        logger.error(f"Failed to load active communities: {e}")
+
+# Load on startup
+load_active_communities()
+
+def is_active_community(community_name):
+    """Check if a community is in the active whitelist."""
+    if not community_name:
+        return False
+    community_lower = community_name.lower()
+
+    # Only exclude if the name contains parenthetical markers like "(DO NOT USE)"
+    # This is more precise than matching anywhere in the name
+    import re
+    exclusion_match = re.search(r'\((do not use|inactive|closed|former|test)\)', community_lower)
+    if exclusion_match:
+        return False
+
+    # Check if community name matches any active community name
+    for active in ACTIVE_COMMUNITY_NAMES:
+        if active in community_lower or community_lower in active:
+            return True
+    return False
+
+# Legacy function for backwards compatibility
+def is_excluded_community(community_name):
+    """Check if a community should be excluded (i.e., NOT in active list)."""
+    return not is_active_community(community_name)
+
 COLUMNS = [
     'cr258_owner_name', 'cr258_accountnumber', 'cr258_property_address',
     'cr258_assoc_name', 'cr258_balance', 'cr258_creditbalance',
@@ -534,8 +589,12 @@ def detect_query_type(query):
         return 'homeowner'
 
     # Default: could be a name search or general query
-    # If it looks like a name (capitalized words), try homeowner
-    if query[0].isupper() and ' ' not in query:
+    # Single word with only letters (no digits/symbols) = likely a name
+    # Check for common last names or name-like patterns
+    is_single_word = ' ' not in query and query.isalpha()
+
+    if is_single_word:
+        # Single alphabetic word - treat as name search (homeowner)
         return 'homeowner'
 
     # Ambiguous - search both
@@ -558,7 +617,7 @@ def extract_community_from_query(query):
 
 
 def search_azure_documents(query, community=None, top=10):
-    """Search Azure AI Search index for SharePoint documents."""
+    """Search Azure AI Search index for SharePoint documents with semantic ranking."""
     import requests
 
     if not AZURE_SEARCH_API_KEY:
@@ -574,9 +633,14 @@ def search_azure_documents(query, community=None, top=10):
 
     payload = {
         "search": search_text,
-        "queryType": "simple",
+        "queryType": "semantic",
+        "semanticConfiguration": "default",
         "top": top,
-        "select": "metadata_spo_item_name,metadata_spo_item_path,metadata_spo_item_weburi,content,document_category,access_level"
+        "select": "metadata_spo_item_name,metadata_spo_item_path,metadata_spo_item_weburi,content,document_category,access_level",
+        "captions": "extractive|highlight-true",
+        "answers": "extractive|count-3",
+        "highlightPreTag": "<mark>",
+        "highlightPostTag": "</mark>"
     }
 
     headers = {
@@ -630,6 +694,14 @@ def search_azure_documents(query, community=None, top=10):
                 community_match = re.search(r'/([^/]+)/Association Documents/', path)
                 doc_community = community_match.group(1) if community_match else None
 
+                # Get semantic caption if available (highlighted excerpt)
+                captions = doc.get('@search.captions', [])
+                caption_text = ''
+                caption_highlights = ''
+                if captions:
+                    caption_text = captions[0].get('text', '')
+                    caption_highlights = captions[0].get('highlights', caption_text)
+
                 results.append({
                     'title': doc.get('metadata_spo_item_name', 'Unknown'),
                     'path': path,
@@ -639,15 +711,36 @@ def search_azure_documents(query, community=None, top=10):
                     'doc_type_info': doc_type_info,
                     'access_level': access_level,
                     'content': doc.get('content', '')[:2000] if doc.get('content') else '',  # Truncate for response
-                    'score': doc.get('@search.score', 0)
+                    'score': doc.get('@search.score', 0),
+                    'reranker_score': doc.get('@search.rerankerScore', 0),
+                    'caption': caption_text,
+                    'caption_highlighted': caption_highlights
                 })
 
-            logger.info(f"Azure Search found {len(results)} results")
+            # Filter out documents ONLY if they have "(DO NOT USE)" or similar in the path
+            # For documents, we're lenient - only exclude if clearly marked as former client
+            EXCLUDED_PATH_PATTERNS = ['(do not use)', '(inactive)', '(closed)', '(former)', '(test)']
+            filtered_results = [
+                doc for doc in results
+                if not any(pattern in (doc.get('path') or '').lower() for pattern in EXCLUDED_PATH_PATTERNS)
+            ]
+
+            logger.info(f"Azure Search found {len(results)} results, {len(filtered_results)} after exclusion filter")
+
+            # Get semantic answers from Azure (extractive answers)
+            semantic_answers = []
+            for ans in data.get('@search.answers', []):
+                semantic_answers.append({
+                    'text': ans.get('text', ''),
+                    'highlights': ans.get('highlights', ''),
+                    'score': ans.get('score', 0),
+                    'key': ans.get('key', '')
+                })
 
             return {
-                'documents': results,
-                'answers': [],
-                'count': len(results)
+                'documents': filtered_results,
+                'answers': semantic_answers,
+                'count': len(filtered_results)
             }
         else:
             logger.error(f"Azure Search failed: {resp.status_code} - {resp.text[:500]}")
@@ -664,15 +757,27 @@ def extract_answer_with_claude(query, documents, community=None):
     if not ANTHROPIC_API_KEY or not documents:
         return None
 
-    # Prepare document context - we only have metadata, not full content
-    doc_context = "Found relevant documents:\n"
-    for i, doc in enumerate(documents[:5]):  # Top 5 docs
-        doc_context += f"\n{i+1}. {doc['title']}"
+    # Prepare document context WITH actual content for answer extraction
+    doc_context = "Found relevant documents with content:\n"
+    for i, doc in enumerate(documents[:5]):  # Top 5 docs - Avalon Fencing.pdf was at position 4
+        doc_context += f"\n{'='*60}\n"
+        doc_context += f"DOCUMENT {i+1}: {doc['title']}"
         if doc.get('community'):
             doc_context += f" (Community: {doc['community']})"
-        doc_context += f"\n   Type: {doc.get('doc_type_info', {}).get('label', 'Document')}"
+        doc_context += f"\nType: {doc.get('doc_type_info', {}).get('label', 'Document')}"
         if doc.get('url'):
-            doc_context += f"\n   URL: {doc['url']}"
+            doc_context += f"\nURL: {doc['url']}"
+
+        # Include actual document content - this is critical for answer extraction
+        content = doc.get('content', '').strip()
+        if content:
+            # Truncate to ~2000 chars per doc (5 docs * 2000 = 10k chars)
+            # The "6 feet" fence height in Avalon Fencing.pdf is at position 1717
+            if len(content) > 2000:
+                content = content[:2000] + "..."
+            doc_context += f"\n\nCONTENT:\n{content}"
+        else:
+            doc_context += "\n\n(No content available - document may need to be opened)"
         doc_context += "\n"
 
     # Determine what type of info to extract
@@ -745,22 +850,27 @@ def extract_answer_with_claude(query, documents, community=None):
 }"""
     }
 
-    prompt = f"""You are a helpful assistant for PS Property Management. A manager is looking for information about community rules and policies.
+    prompt = f"""You are a helpful assistant for PS Property Management. A manager is searching for specific information about community rules and policies.
 
 Question: {query}
 {f'Community: {community}' if community else ''}
 
 {doc_context}
 
-Based on the documents found, provide a helpful response in this JSON format:
+IMPORTANT: Read the document CONTENT provided above and extract the ACTUAL ANSWER to the question.
+Do NOT just suggest opening documents - extract the specific information directly from the content.
+
+Based on the document content, provide a response in this JSON format:
 {{
-    "summary": "A brief helpful response about what was found and where to look",
-    "documents_found": ["list of most relevant document names"],
-    "suggestion": "Suggestion for what to do next (e.g., 'Open the CC&Rs document to find fence height limits')",
+    "answer": "The SPECIFIC ANSWER extracted from the document content (e.g., '6 feet maximum height' for fence questions)",
+    "source": "Name of the document where you found this",
+    "quote": "The exact relevant quote from the document (if found)",
+    "summary": "A brief summary explaining the answer",
+    "documents_found": ["list of relevant document names"],
     "category": "{extraction_type}"
 }}
 
-Be helpful and direct. If specific documents were found, tell them which one is most likely to have their answer.
+If the content contains the answer, extract it directly. If the content is empty or doesn't contain the answer, say so and suggest opening the document.
 Return ONLY valid JSON, no other text."""
 
     try:
@@ -786,8 +896,18 @@ Return ONLY valid JSON, no other text."""
                 # Find JSON in response
                 json_match = re.search(r'\{[\s\S]*\}', content)
                 if json_match:
+                    extracted = json.loads(json_match.group())
+
+                    # Ensure answer field is never empty/null
+                    if not extracted.get('answer') or extracted.get('answer', '').strip() == '':
+                        # Use summary as fallback, or generate a not-found message
+                        if extracted.get('summary'):
+                            extracted['answer'] = extracted['summary']
+                        else:
+                            extracted['answer'] = f"No specific information found in the available documents for this query."
+
                     return {
-                        'extracted': json.loads(json_match.group()),
+                        'extracted': extracted,
                         'extraction_type': extraction_type
                     }
             except json.JSONDecodeError:
@@ -1035,7 +1155,9 @@ def search_homeowners_internal(query, community=None):
             filter_expr = f"contains(cr258_assoc_name,'{community}') and {filter_expr}"
         results = query_dataverse(filter_expr, top=20)
 
-    homeowners = [format_homeowner(r) for r in (results or [])]
+    # Exclude former clients
+    filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
     return {'homeowners': homeowners, 'count': len(homeowners)}
 
 
@@ -1135,8 +1257,10 @@ def search_by_phone(phone, community_filter=None):
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
-    # Further filter by full phone match
-    filtered = [r for r in results if digits[-10:] in normalize_phone(r.get('cr258_primaryphone', ''))]
+    # Further filter by full phone match and exclude former clients
+    filtered = [r for r in results
+                if digits[-10:] in normalize_phone(r.get('cr258_primaryphone', ''))
+                and not is_excluded_community(r.get('cr258_assoc_name'))]
     homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
@@ -1162,7 +1286,9 @@ def search_by_address(address, community_filter=None):
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
-    homeowners = [format_homeowner(r) for r in results]
+    # Exclude former clients
+    filtered = [r for r in results if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
         'search_type': 'address',
@@ -1189,7 +1315,9 @@ def search_by_name(name, community_filter=None):
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
-    homeowners = [format_homeowner(r) for r in results]
+    # Exclude former clients
+    filtered = [r for r in results if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
         'search_type': 'name',
@@ -1226,7 +1354,9 @@ def search_general(query, community_filter=None):
         if unit_results:
             results = results + unit_results if results else unit_results
 
-    homeowners = [format_homeowner(r) for r in results]
+    # Exclude former clients
+    filtered = [r for r in results if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
         'search_type': 'general',
@@ -1250,7 +1380,9 @@ def search_by_community(community, delinquent_only=False):
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
-    homeowners = [format_homeowner(r) for r in results]
+    # Exclude former clients
+    filtered = [r for r in results if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     if delinquent_only:
         homeowners.sort(key=lambda x: x['balance'], reverse=True)
@@ -1302,7 +1434,9 @@ def search_by_account(account, community_filter=None):
             if results:
                 break
 
-    homeowners = [format_homeowner(r) for r in (results or [])]
+    # Exclude former clients
+    filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
         'search_type': 'account',
@@ -1342,7 +1476,9 @@ def search_by_unit(unit_query, community_filter=None):
             filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and {filter_expr}"
         results = query_dataverse(filter_expr, top=30)
 
-    homeowners = [format_homeowner(r) for r in (results or [])]
+    # Exclude former clients
+    filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
+    homeowners = [format_homeowner(r) for r in filtered]
 
     return jsonify({
         'search_type': 'unit',

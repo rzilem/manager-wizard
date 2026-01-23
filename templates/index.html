@@ -498,6 +498,91 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
+        /* Beautiful Quote Box */
+        .quote-box {
+            margin-top: 1.5rem;
+            background: rgba(255,255,255,0.12);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            position: relative;
+            border-left: 4px solid rgba(255,255,255,0.5);
+        }
+
+        .quote-icon {
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .quote-content {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.95);
+            font-style: italic;
+            margin-bottom: 1rem;
+            padding-top: 0.5rem;
+        }
+
+        .quote-content mark {
+            background: rgba(255,255,0,0.4);
+            color: white;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .quote-source {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            flex-wrap: wrap;
+        }
+
+        .quote-source > i {
+            font-size: 1.25rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .quote-source > span {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: rgba(255,255,255,0.9);
+            min-width: 120px;
+        }
+
+        .quote-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: white;
+            color: #047857;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .quote-link:hover {
+            background: #f0fdf4;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
         .ai-answer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1541,6 +1626,12 @@
                 }
             }
 
+            // Get caption with highlights from first document if available
+            let captionHighlighted = '';
+            if (documents && documents.length > 0 && documents[0].caption_highlighted) {
+                captionHighlighted = documents[0].caption_highlighted;
+            }
+
             return `
                 <div class="ai-answer-card">
                     <div class="ai-answer-header">
@@ -1553,13 +1644,25 @@
                         </div>
                     </div>
                     <div class="ai-main-answer">${escapeHtml(mainAnswer)}</div>
-                    ${extracted.quote ? `
-                        <div class="ai-summary" style="margin-top: 1rem;">
-                            <i class="fas fa-quote-left" style="opacity: 0.5; margin-right: 8px;"></i>
-                            "${escapeHtml(extracted.quote)}"
+                    ${extracted.quote || captionHighlighted ? `
+                        <div class="quote-box">
+                            <div class="quote-icon"><i class="fas fa-quote-left"></i></div>
+                            <div class="quote-content">
+                                ${captionHighlighted ? captionHighlighted : escapeHtml(extracted.quote)}
+                            </div>
+                            ${sourceName ? `
+                                <div class="quote-source">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>${escapeHtml(sourceName)}</span>
+                                    ${sourceUrl ? `
+                                        <a href="${escapeHtml(sourceUrl)}" target="_blank" class="quote-link">
+                                            Open Document <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
                         </div>
-                    ` : ''}
-                    ${sourceName ? `
+                    ` : (sourceName ? `
                         <div class="ai-source-section">
                             <div class="ai-source-label">Source Document</div>
                             <div class="ai-source-doc">
@@ -1573,7 +1676,7 @@
                                 ` : ''}
                             </div>
                         </div>
-                    ` : ''}
+                    ` : '')}
                 </div>
             `;
         }
