@@ -2011,60 +2011,113 @@
                 quote: btn.dataset.quote || '',
                 source: btn.dataset.source || ''
             };
-            const html = `
-<table style="border-collapse: collapse; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-radius: 8px; border: 1px solid #d1e7dd; width: 100%; max-width: 550px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+
+            // Build quote row if we have a quote
+            let quoteHtml = '';
+            if (data.quote) {
+                quoteHtml = `
     <tr>
-        <td style="padding: 20px;">
-            <div style="font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 16px;">${data.answer}</div>
-            ${data.quote ? `
-            <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <div style="width: 28px; height: 28px; background: #64748b; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <span style="color: white; font-size: 14px; font-weight: bold;">"</span>
-                </div>
-                <div style="font-size: 13px; color: #475569; line-height: 1.6; flex: 1;">${data.quote}</div>
-            </div>
-            ` : ''}
-            ${data.source ? `
-            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #d1e7dd;">
-                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">
-                    <span style="color: #dc2626;">📄</span> ${data.source}
-                </span>
-            </div>
-            ` : ''}
+        <td style="padding: 0 20px 16px 20px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td width="36" valign="top" style="padding-right: 12px;">
+                        <div style="width: 28px; height: 28px; background-color: #64748b; border-radius: 14px; text-align: center; line-height: 28px;">
+                            <span style="color: white; font-size: 16px; font-weight: bold;">"</span>
+                        </div>
+                    </td>
+                    <td valign="top" style="font-size: 13px; color: #475569; line-height: 1.6;">${data.quote}</td>
+                </tr>
+            </table>
         </td>
-    </tr>
-</table>`;
+    </tr>`;
+            }
+
+            // Build source row if we have a source
+            let sourceHtml = '';
+            if (data.source) {
+                sourceHtml = `
+    <tr>
+        <td style="padding: 12px 20px 16px 20px; border-top: 1px solid #d1e7dd;">
+            <span style="font-size: 12px; color: #64748b;">📄 ${data.source}</span>
+        </td>
+    </tr>`;
+            }
+
+            const html = `<table cellpadding="0" cellspacing="0" border="0" style="background-color: #f0fdf4; border-radius: 8px; border: 1px solid #d1e7dd; max-width: 550px; font-family: Arial, sans-serif;">
+    <tr>
+        <td style="padding: 20px 20px 16px 20px;">
+            <div style="font-size: 18px; font-weight: bold; color: #1e293b;">${data.answer}</div>
+        </td>
+    </tr>${quoteHtml}${sourceHtml}</table>`;
 
             copyHtmlToClipboard(html, btn);
         }
 
         // Helper to copy HTML to clipboard with fallback
         function copyHtmlToClipboard(html, btn) {
-            // Try to copy as HTML (for rich paste in Outlook/Gmail)
-            const blob = new Blob([html], { type: 'text/html' });
-            const clipboardItem = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([html.replace(/<[^>]*>/g, '')], { type: 'text/plain' }) });
+            const originalText = btn.innerHTML;
 
-            navigator.clipboard.write([clipboardItem]).then(() => {
-                // Success feedback
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                btn.classList.add('copied');
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.remove('copied');
-                }, 2000);
-            }).catch(err => {
-                // Fallback to text copy
-                navigator.clipboard.writeText(html).then(() => {
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="fas fa-check"></i> Copied (HTML)';
+            // Show copying state
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Copying...';
+
+            try {
+                // Try to copy as HTML (for rich paste in Outlook/Gmail)
+                const htmlBlob = new Blob([html], { type: 'text/html' });
+                const textBlob = new Blob([html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()], { type: 'text/plain' });
+
+                navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': htmlBlob,
+                        'text/plain': textBlob
+                    })
+                ]).then(() => {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
                     btn.classList.add('copied');
                     setTimeout(() => {
                         btn.innerHTML = originalText;
                         btn.classList.remove('copied');
                     }, 2000);
+                }).catch(err => {
+                    console.error('Clipboard write failed:', err);
+                    // Fallback - try execCommand
+                    fallbackCopy(html, btn, originalText);
                 });
-            });
+            } catch (err) {
+                console.error('Clipboard API error:', err);
+                fallbackCopy(html, btn, originalText);
+            }
+        }
+
+        // Fallback copy using execCommand
+        function fallbackCopy(html, btn, originalText) {
+            const container = document.createElement('div');
+            container.innerHTML = html;
+            container.style.position = 'fixed';
+            container.style.left = '-9999px';
+            document.body.appendChild(container);
+
+            const range = document.createRange();
+            range.selectNodeContents(container);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            try {
+                document.execCommand('copy');
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+            } catch (err) {
+                console.error('execCommand failed:', err);
+                btn.innerHTML = '<i class="fas fa-times"></i> Failed';
+            }
+
+            selection.removeAllRanges();
+            document.body.removeChild(container);
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('copied');
+            }, 2000);
         }
 
         function escapeHtml(text) {
