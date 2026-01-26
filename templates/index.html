@@ -730,22 +730,53 @@
         }
 
         .copy-card-btn {
-            position: absolute;
-            top: 0;
-            right: 0;
             background: transparent;
-            border: none;
-            color: var(--gray-400);
+            border: 1px solid var(--gray-300);
+            color: var(--gray-600);
             cursor: pointer;
-            padding: 4px 8px;
-            font-size: 0.75rem;
-            opacity: 0.5;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            border-radius: var(--radius-md);
             transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .copy-card-btn:hover {
-            opacity: 1;
+            background: var(--gray-100);
+            border-color: var(--primary);
             color: var(--primary);
+        }
+
+        .copy-email-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: var(--radius-md);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        .copy-email-btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+        }
+
+        .copy-email-btn.copied {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .copy-email-btn i {
+            font-size: 0.9rem;
         }
 
         .card-name {
@@ -1640,8 +1671,12 @@
                 captionHighlighted = documents[0].caption_highlighted;
             }
 
+            // Generate unique ID for this answer card
+            const answerId = 'answer-' + Math.random().toString(36).substr(2, 9);
+            const quoteText = extracted.quote || (captionHighlighted ? captionHighlighted.replace(/<[^>]*>/g, '') : '');
+
             return `
-                <div class="ai-answer-card">
+                <div class="ai-answer-card" id="${answerId}">
                     <div class="ai-answer-header">
                         <div class="ai-icon">
                             <i class="fas fa-check-circle"></i>
@@ -1685,6 +1720,17 @@
                             </div>
                         </div>
                     ` : '')}
+                    <div class="ai-answer-actions" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                        <button class="copy-email-btn" onclick="copyAnswerForEmail(this, ${JSON.stringify({
+                            community: community || 'Community Documents',
+                            answer: mainAnswer,
+                            quote: quoteText,
+                            source: sourceName,
+                            sourceUrl: sourceUrl
+                        }).replace(/'/g, "\\'")})" title="Copy formatted answer for email">
+                            <i class="fas fa-envelope"></i> Copy for Email
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -1783,22 +1829,17 @@
                 </div>
             `;
 
-            // Subtle copy icon for phone (only if phone exists)
-            const copyPhoneIcon = h.phone && h.phone !== 'N/A' ? `
-                <button class="copy-card-btn" onclick="copyToClipboard('${escapeHtml(h.phone)}')" title="Copy phone number">
-                    <i class="fas fa-copy"></i>
-                </button>
-            ` : '';
+            // Generate unique ID for this card
+            const cardId = 'homeowner-' + Math.random().toString(36).substr(2, 9);
 
             return `
-                <div class="${cardClass}">
+                <div class="${cardClass}" id="${cardId}">
                     <div class="card-header">
                         <div>
                             <div class="card-name">${escapeHtml(h.owner_name)}</div>
                             <div class="card-community">${escapeHtml(h.community)}</div>
                             ${statusBadge}
                         </div>
-                        ${copyPhoneIcon}
                         ${balanceHeaderHtml}
                     </div>
                     ${attorneyWarningHtml}
@@ -1844,6 +1885,19 @@
                                 <i class="fas fa-external-link-alt"></i> Open in Vantaca
                             </a>
                         ` : ''}
+                        <button class="copy-email-btn" onclick="copyHomeownerForEmail(this, '${cardId}', ${JSON.stringify({
+                            name: h.owner_name,
+                            community: h.community,
+                            address: h.property_address,
+                            phone: h.phone,
+                            email: h.email,
+                            account: h.account_number,
+                            balance: h.balance_display,
+                            balance_status: h.balance_status,
+                            vantaca_url: h.vantaca_url
+                        }).replace(/'/g, "\\'")})" title="Copy formatted info for email">
+                            <i class="fas fa-envelope"></i> Copy for Email
+                        </button>
                     </div>
                 </div>
             `;
@@ -1892,6 +1946,114 @@
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
                 console.log('Copied:', text);
+            });
+        }
+
+        // Copy homeowner info as formatted HTML for emails
+        function copyHomeownerForEmail(btn, cardId, data) {
+            const balanceColor = data.balance_status === 'credit' ? '#059669' :
+                                 (parseFloat(data.balance?.replace(/[$,]/g, '')) > 500 ? '#dc2626' : '#ea580c');
+
+            const html = `
+<table style="border-collapse: collapse; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 8px; border: 1px solid #e2e8f0; width: 100%; max-width: 400px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <tr>
+        <td style="padding: 16px; border-bottom: 1px solid #e2e8f0;">
+            <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px;">${data.name || 'N/A'}</div>
+            <div style="font-size: 13px; color: #64748b;">${data.community || 'N/A'}</div>
+        </td>
+        <td style="padding: 16px; border-bottom: 1px solid #e2e8f0; text-align: right;">
+            <div style="font-size: 18px; font-weight: 700; color: ${balanceColor};">${data.balance || 'N/A'}</div>
+            <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">${data.balance_status === 'credit' ? 'Credit' : 'Balance'}</div>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="padding: 12px 16px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b; font-size: 12px; width: 70px;">Address</td>
+                    <td style="padding: 6px 0; color: #1e293b; font-size: 13px;">${data.address || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b; font-size: 12px;">Phone</td>
+                    <td style="padding: 6px 0; color: #1e293b; font-size: 13px;">${data.phone || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b; font-size: 12px;">Email</td>
+                    <td style="padding: 6px 0; color: #1e293b; font-size: 13px;">${data.email || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 6px 0; color: #64748b; font-size: 12px;">Account</td>
+                    <td style="padding: 6px 0; color: #1e293b; font-size: 13px;">${data.account || 'N/A'}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>`;
+
+            copyHtmlToClipboard(html, btn);
+        }
+
+        // Copy AI answer as formatted HTML for emails
+        function copyAnswerForEmail(btn, data) {
+            const html = `
+<table style="border-collapse: collapse; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-radius: 8px; border: 1px solid #a7d8c4; border-left: 4px solid #10b981; width: 100%; max-width: 500px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <tr>
+        <td style="padding: 16px 20px; border-bottom: 1px solid #d1fae5;">
+            <div style="display: flex; align-items: center;">
+                <span style="display: inline-block; width: 28px; height: 28px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; text-align: center; line-height: 28px; color: white; font-size: 14px; margin-right: 12px;">✓</span>
+                <div>
+                    <div style="font-size: 14px; font-weight: 600; color: #047857;">Answer Found</div>
+                    <div style="font-size: 12px; color: #6b7280;">${data.community}</div>
+                </div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <td style="padding: 16px 20px;">
+            <div style="font-size: 14px; color: #1f2937; line-height: 1.6;">${data.answer}</div>
+        </td>
+    </tr>
+    ${data.quote ? `
+    <tr>
+        <td style="padding: 0 20px 16px 20px;">
+            <div style="background: white; border-radius: 6px; padding: 12px 16px; border: 1px solid #e5e7eb; border-left: 3px solid #64748b;">
+                <div style="font-size: 13px; color: #475569; font-style: italic; line-height: 1.5;">"${data.quote}"</div>
+                ${data.source ? `<div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">— ${data.source}</div>` : ''}
+            </div>
+        </td>
+    </tr>
+    ` : ''}
+</table>`;
+
+            copyHtmlToClipboard(html, btn);
+        }
+
+        // Helper to copy HTML to clipboard with fallback
+        function copyHtmlToClipboard(html, btn) {
+            // Try to copy as HTML (for rich paste in Outlook/Gmail)
+            const blob = new Blob([html], { type: 'text/html' });
+            const clipboardItem = new ClipboardItem({ 'text/html': blob, 'text/plain': new Blob([html.replace(/<[^>]*>/g, '')], { type: 'text/plain' }) });
+
+            navigator.clipboard.write([clipboardItem]).then(() => {
+                // Success feedback
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                // Fallback to text copy
+                navigator.clipboard.writeText(html).then(() => {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied (HTML)';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
             });
         }
 
