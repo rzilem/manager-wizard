@@ -74,7 +74,7 @@ def login_required(f):
 # =============================================================================
 AZURE_SEARCH_ENDPOINT = os.environ.get('AZURE_SEARCH_ENDPOINT', 'https://psmai.search.windows.net')
 AZURE_SEARCH_API_KEY = os.environ.get('AZURE_SEARCH_API_KEY', '')
-AZURE_SEARCH_INDEX = os.environ.get('AZURE_SEARCH_INDEX', 'sharepoint-docs')
+AZURE_SEARCH_INDEX = os.environ.get('AZURE_SEARCH_INDEX', 'sharepoint-docs-v2')  # Updated to v2 with vector + semantic answers
 
 # =============================================================================
 # ANTHROPIC CONFIGURATION (Claude for answer extraction)
@@ -624,7 +624,7 @@ def search_azure_documents(query, community=None, top=10):
         logger.warning("Azure Search not configured")
         return {'documents': [], 'answers': [], 'count': 0}
 
-    url = f"{AZURE_SEARCH_ENDPOINT}/indexes/{AZURE_SEARCH_INDEX}/docs/search?api-version=2023-11-01"
+    url = f"{AZURE_SEARCH_ENDPOINT}/indexes/{AZURE_SEARCH_INDEX}/docs/search?api-version=2024-05-01-preview"
 
     # Build search query
     search_text = query
@@ -634,9 +634,9 @@ def search_azure_documents(query, community=None, top=10):
     payload = {
         "search": search_text,
         "queryType": "semantic",
-        "semanticConfiguration": "default",
+        "semanticConfiguration": "semantic-config",
         "top": top,
-        "select": "metadata_spo_item_name,metadata_spo_item_path,metadata_spo_item_weburi,content,document_category,access_level",
+        "select": "title,file_name,file_path,web_url,chunk_text,community_name,document_type",
         "captions": "extractive|highlight-true",
         "answers": "extractive|count-3",
         "highlightPreTag": "<mark>",
@@ -681,18 +681,22 @@ def search_azure_documents(query, community=None, top=10):
                 'community_directory': {'icon': 'address-book', 'color': '#6366f1', 'label': 'Directory'},
             }
 
-            # Process search results
+            # Process search results (v2 index with new field names)
             for doc in data.get('value', []):
-                # Use document_category from classification (fallback to pattern matching)
-                doc_category = doc.get('document_category') or 'uncategorized'
-                doc_type_info = CATEGORY_DISPLAY.get(doc_category, {'icon': 'file-alt', 'color': '#6b7280', 'label': doc_category.replace('_', ' ').title()})
+                # Use document_type from index or infer from path
+                doc_category = doc.get('document_type') or 'uncategorized'
+                doc_type_info = CATEGORY_DISPLAY.get(doc_category, {'icon': 'file-alt', 'color': '#6b7280', 'label': doc_category.replace('_', ' ').title() if doc_category else 'Document'})
 
-                access_level = doc.get('access_level') or 'unknown'
+                # Get file path (v2 uses file_path instead of metadata_spo_item_path)
+                path = doc.get('file_path') or ''
 
-                # Extract community from path
-                path = doc.get('metadata_spo_item_path') or ''
-                community_match = re.search(r'/([^/]+)/Association Documents/', path)
-                doc_community = community_match.group(1) if community_match else None
+                # Extract community from path or use community_name field
+                doc_community = doc.get('community_name')
+                if not doc_community and path:
+                    # Try to extract from path patterns
+                    community_match = re.search(r'/([^/]+)/(?:Association Documents|Public|Operations)/', path)
+                    if community_match:
+                        doc_community = community_match.group(1)
 
                 # Get semantic caption if available (highlighted excerpt)
                 captions = doc.get('@search.captions', [])
@@ -702,19 +706,27 @@ def search_azure_documents(query, community=None, top=10):
                     caption_text = captions[0].get('text', '')
                     caption_highlights = captions[0].get('highlights', caption_text)
 
+                # Use chunk_text as content in v2 index
+                chunk_content = doc.get('chunk_text', '')
+
+                # Check if document is from Archive folder
+                is_archived = '/Archive/' in path or '/Archive' in path
+
                 results.append({
-                    'title': doc.get('metadata_spo_item_name', 'Unknown'),
+                    'title': doc.get('file_name') or doc.get('title') or path.split('/')[-1] if path else 'Unknown',
                     'path': path,
-                    'url': doc.get('metadata_spo_item_weburi', ''),
+                    'url': doc.get('web_url', ''),
                     'community': doc_community,
                     'doc_type': doc_category,
                     'doc_type_info': doc_type_info,
-                    'access_level': access_level,
-                    'content': doc.get('content', '')[:2000] if doc.get('content') else '',  # Truncate for response
+                    'access_level': 'public',  # v2 doesn't have access_level yet
+                    'content': chunk_content[:2000] if chunk_content else '',  # Truncate for response
                     'score': doc.get('@search.score', 0),
                     'reranker_score': doc.get('@search.rerankerScore', 0),
                     'caption': caption_text,
-                    'caption_highlighted': caption_highlights
+                    'caption_highlighted': caption_highlights,
+                    'is_archived': is_archived,
+                    'archive_warning': '⚠️ ARCHIVED - This document may be outdated' if is_archived else None
                 })
 
             # Filter out documents ONLY if they have "(DO NOT USE)" or similar in the path
@@ -759,9 +771,13 @@ def extract_answer_with_claude(query, documents, community=None):
 
     # Prepare document context WITH actual content for answer extraction
     doc_context = "Found relevant documents with content:\n"
+    has_archived_docs = any(doc.get('is_archived') for doc in documents[:5])
+
     for i, doc in enumerate(documents[:5]):  # Top 5 docs - Avalon Fencing.pdf was at position 4
         doc_context += f"\n{'='*60}\n"
         doc_context += f"DOCUMENT {i+1}: {doc['title']}"
+        if doc.get('is_archived'):
+            doc_context += f" [⚠️ ARCHIVED - may be outdated]"
         if doc.get('community'):
             doc_context += f" (Community: {doc['community']})"
         doc_context += f"\nType: {doc.get('doc_type_info', {}).get('label', 'Document')}"
@@ -859,6 +875,7 @@ Question: {query}
 
 IMPORTANT: Read the document CONTENT provided above and extract the ACTUAL ANSWER to the question.
 Do NOT just suggest opening documents - extract the specific information directly from the content.
+{f"⚠️ NOTE: Some documents are from ARCHIVE folders and may be outdated. If using archived documents, mention this in your answer." if has_archived_docs else ""}
 
 Based on the document content, provide a response in this JSON format:
 {{
@@ -867,7 +884,8 @@ Based on the document content, provide a response in this JSON format:
     "quote": "The exact relevant quote from the document (if found)",
     "summary": "A brief summary explaining the answer",
     "documents_found": ["list of relevant document names"],
-    "category": "{extraction_type}"
+    "category": "{extraction_type}",
+    "from_archive": true/false (whether the answer came from an archived document)
 }}
 
 If the content contains the answer, extract it directly. If the content is empty or doesn't contain the answer, say so and suggest opening the document.
