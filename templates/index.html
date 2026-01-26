@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             /* LinkedIn-inspired Blue */
@@ -1558,7 +1559,7 @@
             `;
 
             if (hasAiAnswer) {
-                html += renderAiAnswerCard(data.ai_answer, data.community_detected, data.documents);
+                html += renderAiAnswerCard(data.ai_answer, data.community_detected, data.documents, data.query);
             }
 
             if (hasHomeowners) {
@@ -1605,7 +1606,7 @@
             collapsible.classList.toggle('expanded');
         }
 
-        function renderAiAnswerCard(aiAnswer, community, documents) {
+        function renderAiAnswerCard(aiAnswer, community, documents, query) {
             const extracted = aiAnswer.extracted;
             const type = aiAnswer.extraction_type;
 
@@ -1722,13 +1723,11 @@
                     ` : '')}
                     <div class="ai-answer-actions" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
                         <button class="copy-email-btn"
-                            data-community="${escapeHtml(community || 'Community Documents')}"
-                            data-answer="${escapeHtml(mainAnswer)}"
-                            data-quote="${escapeHtml(quoteText)}"
-                            data-source="${escapeHtml(sourceName)}"
-                            onclick="copyAnswerForEmail(this)"
-                            title="Copy formatted answer for email">
-                            <i class="fas fa-envelope"></i> Copy for Email
+                            data-card-id="${answerId}"
+                            data-query="${escapeHtml(query || '')}"
+                            onclick="copyAnswerAsImage(this)"
+                            title="Copy as image for email">
+                            <i class="fas fa-image"></i> Copy for Email
                         </button>
                     </div>
                 </div>
@@ -2003,7 +2002,89 @@
             copyHtmlToClipboard(html, btn);
         }
 
-        // Copy AI answer as formatted HTML for emails
+        // Copy AI answer card as image for emails
+        async function copyAnswerAsImage(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Capturing...';
+
+            try {
+                const cardId = btn.dataset.cardId;
+                const query = btn.dataset.query || '';
+                const card = document.getElementById(cardId);
+
+                if (!card) {
+                    throw new Error('Card not found');
+                }
+
+                // Create a wrapper with the question above the card
+                const wrapper = document.createElement('div');
+                wrapper.style.cssText = 'position: fixed; left: -9999px; top: 0; background: #ffffff; padding: 24px; max-width: 700px; font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;';
+
+                // Add the question at the top (larger text as requested)
+                if (query) {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.style.cssText = 'font-size: 20px; font-weight: 500; color: #1e293b; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;';
+                    questionDiv.textContent = '"' + query + '"';
+                    wrapper.appendChild(questionDiv);
+                }
+
+                // Clone the card (without the copy button)
+                const cardClone = card.cloneNode(true);
+                // Remove the actions div from the clone
+                const actionsDiv = cardClone.querySelector('.ai-answer-actions');
+                if (actionsDiv) {
+                    actionsDiv.remove();
+                }
+                wrapper.appendChild(cardClone);
+
+                document.body.appendChild(wrapper);
+
+                // Capture as canvas
+                const canvas = await html2canvas(wrapper, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // Higher resolution
+                    logging: false,
+                    useCORS: true
+                });
+
+                document.body.removeChild(wrapper);
+
+                // Convert to blob and copy
+                canvas.toBlob(async (blob) => {
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                            btn.classList.remove('copied');
+                        }, 2000);
+                    } catch (clipErr) {
+                        console.error('Clipboard write failed:', clipErr);
+                        // Fallback: download the image
+                        const link = document.createElement('a');
+                        link.download = 'answer.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        btn.innerHTML = '<i class="fas fa-download"></i> Downloaded';
+                        setTimeout(() => {
+                            btn.innerHTML = originalText;
+                        }, 2000);
+                    }
+                }, 'image/png');
+
+            } catch (err) {
+                console.error('Image capture error:', err);
+                btn.innerHTML = '<i class="fas fa-times"></i> Failed';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            }
+        }
+
+        // Copy AI answer as formatted HTML for emails (legacy fallback)
         function copyAnswerForEmail(btn) {
             const data = {
                 community: btn.dataset.community || 'Community Documents',
