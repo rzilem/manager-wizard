@@ -1749,8 +1749,8 @@
                 </div>
             `;
 
-            // Only show AI answer for document/combined searches, not for homeowner name/phone/address searches
-            if (hasAiAnswer && data.detected_type !== 'homeowner') {
+            // Only show AI answer when NO homeowner results found (pure document searches)
+            if (hasAiAnswer && !hasHomeowners) {
                 html += renderAiAnswerCard(data.ai_answer, data.community_detected, data.documents, data.query);
             }
 
