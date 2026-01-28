@@ -153,21 +153,23 @@
         /* Hero Section */
         .hero {
             text-align: center;
-            padding: 3rem 1rem 2rem;
+            padding: 1.5rem 1rem 1rem;
         }
 
         .hero h1 {
-            font-size: 2.5rem;
+            font-size: 2.25rem;
             font-weight: 700;
             color: var(--gray-900);
             margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
         }
 
         .hero p {
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: var(--gray-500);
-            max-width: 500px;
+            max-width: 650px;
             margin: 0 auto;
+            line-height: 1.5;
         }
 
         /* Search Container */
@@ -1451,7 +1453,9 @@
 
         /* Responsive */
         @media (max-width: 768px) {
+            .hero { padding: 1rem 1rem 0.75rem; }
             .hero h1 { font-size: 1.75rem; }
+            .hero p { font-size: 0.875rem; }
             .search-container, .results-container { padding: 1rem; }
             .search-mode-toggle { flex-wrap: wrap; }
             .mode-btn { flex: 1; justify-content: center; min-width: 80px; }
@@ -1506,7 +1510,7 @@
         <!-- Hero -->
         <section class="hero">
             <h1>Ask me anything</h1>
-            <p>Search homeowners by phone, address, or name. Ask questions about community rules and policies.</p>
+            <p>Find homeowners by phone, address, or name — or ask about community rules, CC&Rs, and policies.</p>
         </section>
 
         <!-- Search Container -->
