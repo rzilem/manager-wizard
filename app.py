@@ -496,7 +496,7 @@ def format_homeowner(rec):
         'tags': tags,
         'last_payment': last_payment,
         'vantaca_url': rec.get('cr258_vantacaurl') or None,
-        'is_board_member': rec.get('cr258_boardmember') == True or rec.get('cr258_boardmember') == 'Yes' or rec.get('cr258_boardmember') == 1,
+        'is_board_member': rec.get('cr258_boardmember') == True or rec.get('cr258_boardmember') == 'Yes' or rec.get('cr258_boardmember') == 1 or 'Board' in tags,
         'last_synced': last_synced,
         'last_synced_display': last_synced_display
     }

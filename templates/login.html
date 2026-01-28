@@ -229,6 +229,20 @@
         .microsoft-btn.pulse {
             animation: pulse 2s infinite;
         }
+
+        .teams-notice {
+            background: #E8F3FF;
+            color: #004182;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .teams-notice i {
+            margin-right: 8px;
+        }
     </style>
 </head>
 <body>
@@ -246,6 +260,11 @@
         <h1>Welcome</h1>
         <p class="subtitle">Sign in with your PSPM Microsoft account to access the Manager Wizard.</p>
 
+        <div class="teams-notice" id="teamsNotice">
+            <i class="fab fa-microsoft"></i>
+            Running in Teams - click below to sign in
+        </div>
+
         {% if error %}
         <div class="error-message">
             <i class="fas fa-exclamation-circle"></i>
@@ -253,7 +272,7 @@
         </div>
         {% endif %}
 
-        <a href="{{ url_for('login') }}" class="microsoft-btn pulse">
+        <button id="signInBtn" class="microsoft-btn pulse" onclick="handleSignIn()">
             <div class="microsoft-logo">
                 <span></span>
                 <span></span>
@@ -261,7 +280,7 @@
                 <span></span>
             </div>
             Sign in with Microsoft
-        </a>
+        </button>
 
         <div class="divider"><span>or</span></div>
 
@@ -275,5 +294,69 @@
             <p>PS Property Management &bull; <a href="tel:512-251-6122">512-251-6122</a></p>
         </div>
     </div>
+
+    <script>
+        // Check if we're in an iframe (Teams)
+        const isInIframe = window.self !== window.top;
+        const loginUrl = '{{ url_for("login") }}';
+        const baseUrl = window.location.origin;
+
+        // Show Teams notice if in iframe
+        if (isInIframe) {
+            document.getElementById('teamsNotice').style.display = 'block';
+        }
+
+        function handleSignIn() {
+            if (isInIframe) {
+                // In Teams iframe - open popup for authentication
+                const width = 500;
+                const height = 700;
+                const left = (window.screen.width - width) / 2;
+                const top = (window.screen.height - height) / 2;
+
+                const popup = window.open(
+                    loginUrl,
+                    'SignIn',
+                    `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+                );
+
+                // Check if popup was blocked
+                if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                    alert('Please allow popups for this site to sign in.');
+                    return;
+                }
+
+                // Poll to check when auth is complete
+                const pollTimer = setInterval(() => {
+                    try {
+                        // Check if popup closed
+                        if (popup.closed) {
+                            clearInterval(pollTimer);
+                            // Reload parent to check if authenticated
+                            window.location.reload();
+                        }
+                        // Check if popup redirected to home (auth success)
+                        if (popup.location.href && popup.location.href.indexOf('/login') === -1 && popup.location.href.indexOf('/auth') === -1) {
+                            clearInterval(pollTimer);
+                            popup.close();
+                            window.location.reload();
+                        }
+                    } catch (e) {
+                        // Cross-origin error - popup is on auth domain, keep waiting
+                    }
+                }, 500);
+            } else {
+                // Not in iframe - normal redirect
+                window.location.href = loginUrl;
+            }
+        }
+
+        // Listen for messages from popup (auth complete)
+        window.addEventListener('message', (event) => {
+            if (event.data === 'auth-complete') {
+                window.location.reload();
+            }
+        });
+    </script>
 </body>
 </html>

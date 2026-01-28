@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signed In | Manager Wizard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #F3F2EF 0%, #E3E8ED 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .success-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            text-align: center;
+        }
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            background: #10B981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        .success-icon i {
+            color: white;
+            font-size: 28px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            color: #191919;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: #666666;
+            margin-bottom: 1.5rem;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #E8E6DF;
+            border-top-color: #0A66C2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <h1>Signed In!</h1>
+        <p>Welcome, {{ user.name }}!</p>
+        <p id="status"><span class="spinner"></span>Completing sign-in...</p>
+    </div>
+
+    <script>
+        // If in popup, notify parent and close
+        if (window.opener) {
+            // Send message to parent
+            try {
+                window.opener.postMessage('auth-complete', '*');
+            } catch (e) {
+                console.log('Could not post message to opener');
+            }
+            // Close this popup after a brief delay
+            setTimeout(() => {
+                window.close();
+            }, 1000);
+        } else {
+            // Not in popup, redirect to main page
+            document.getElementById('status').innerHTML = '<span class="spinner"></span>Loading Manager Wizard...';
+            setTimeout(() => {
+                window.location.href = '{{ next_url }}';
+            }, 500);
+        }
+    </script>
+</body>
+</html>
