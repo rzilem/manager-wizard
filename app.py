@@ -721,13 +721,15 @@ def search_azure_documents(query, community=None, top=10):
     # Always exclude Archive folders - outdated documents
     filters.append("not search.ismatch('Archive', 'file_path')")
 
-    # Filter by community using normalized name matching
+    # Filter by community using PHRASE matching (quotes prevent word-level matching)
     if community:
         normalized = normalize_community_name(community)
         if normalized:
-            # Use search.ismatch for fuzzy community filtering
-            filters.append(f"search.ismatch('{normalized}*', 'community_name')")
-            logger.info(f"Community filter: '{community}' -> normalized: '{normalized}'")
+            # Use phrase matching with quotes to prevent "Heritage Park" matching "Central Park"
+            # Escape single quotes in the normalized name
+            safe_normalized = normalized.replace("'", "''")
+            filters.append(f'search.ismatch(\'"{safe_normalized}"\', \'community_name\')')
+            logger.info(f"Community filter: '{community}' -> phrase: '\"{safe_normalized}\"'")
 
     if filters:
         payload["filter"] = " and ".join(filters)
@@ -827,7 +829,44 @@ def search_azure_documents(query, community=None, top=10):
                 if not any(pattern in (doc.get('path') or '').lower() for pattern in EXCLUDED_PATH_PATTERNS)
             ]
 
-            logger.info(f"Azure Search found {len(results)} results, {len(filtered_results)} after exclusion filter")
+            # Post-filter: Verify community matches and prioritize exact matches
+            if community:
+                normalized_query = normalize_community_name(community)
+
+                def community_match_score(doc):
+                    """Score how well doc's community matches the query. Higher = better match."""
+                    doc_community = doc.get('community') or ''
+                    normalized_doc = normalize_community_name(doc_community)
+
+                    # Exact match (after normalization) = 100
+                    if normalized_doc == normalized_query:
+                        return 100
+                    # Query is contained in doc community = 50
+                    if normalized_query in normalized_doc:
+                        return 50
+                    # Doc community is contained in query = 40
+                    if normalized_doc in normalized_query:
+                        return 40
+                    # No match = 0
+                    return 0
+
+                # Score and filter results
+                scored_results = [(doc, community_match_score(doc)) for doc in filtered_results]
+
+                # Keep only documents with some community match (score > 0)
+                # OR if no matches found, keep all (fallback to broad results)
+                matched_results = [doc for doc, score in scored_results if score > 0]
+
+                if matched_results:
+                    # Sort by match score (best matches first), then by search score
+                    matched_results = [doc for doc, score in sorted(scored_results, key=lambda x: (-x[1], -x[0].get('score', 0))) if score > 0]
+                    logger.info(f"Community post-filter: {len(filtered_results)} -> {len(matched_results)} (matched '{community}')")
+                    filtered_results = matched_results
+                else:
+                    # No strict matches - log warning but keep broad results
+                    logger.warning(f"No strict community match for '{community}', keeping {len(filtered_results)} broad results")
+
+            logger.info(f"Azure Search found {len(results)} results, {len(filtered_results)} after all filters")
 
             # Get semantic answers from Azure (extractive answers)
             semantic_answers = []
