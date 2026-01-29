@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Wizard Search Analytics - Widget Wireframe</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root {
+            --analytics-primary: #6366f1;
+            --analytics-success: #10b981;
+            --analytics-warning: #f59e0b;
+            --analytics-danger: #ef4444;
+            --analytics-neutral: #64748b;
+            --analytics-bg: #f8fafc;
+            --analytics-card: #ffffff;
+            --analytics-border: #e2e8f0;
+            --analytics-text: #1e293b;
+            --analytics-text-muted: #64748b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--analytics-bg);
+            color: var(--analytics-text);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .widget-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--analytics-card);
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--analytics-border);
+            background: linear-gradient(135deg, var(--analytics-primary) 0%, #8b5cf6 100%);
+            color: white;
+        }
+
+        .widget-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .widget-header .time-filter {
+            display: flex;
+            gap: 8px;
+        }
+
+        .widget-header .time-filter button {
+            padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .widget-header .time-filter button.active {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .widget-header .time-filter button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 20px 24px;
+            background: #f1f5f9;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .kpi-card .kpi-label {
+            font-size: 0.75rem;
+            color: var(--analytics-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-card .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--analytics-text);
+        }
+
+        .kpi-card .kpi-trend {
+            font-size: 0.8rem;
+            margin-top: 6px;
+        }
+
+        .kpi-card .kpi-trend.up {
+            color: var(--analytics-success);
+        }
+
+        .kpi-card .kpi-trend.down {
+            color: var(--analytics-danger);
+        }
+
+        .kpi-card.success .kpi-value {
+            color: var(--analytics-success);
+        }
+
+        .kpi-card.warning .kpi-value {
+            color: var(--analytics-warning);
+        }
+
+        .kpi-card.danger .kpi-value {
+            color: var(--analytics-danger);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            padding: 24px;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--analytics-border);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .section-header a {
+            font-size: 0.8rem;
+            color: var(--analytics-primary);
+            text-decoration: none;
+        }
+
+        .section-header a:hover {
+            text-decoration: underline;
+        }
+
+        /* Chart placeholder */
+        .chart-container {
+            padding: 20px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #f8fafc 0%, white 100%);
+        }
+
+        .chart-placeholder {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 140px;
+        }
+
+        .chart-bar {
+            width: 40px;
+            background: linear-gradient(180deg, var(--analytics-primary) 0%, #a5b4fc 100%);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+        }
+
+        .chart-bar::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: var(--analytics-text-muted);
+            white-space: nowrap;
+        }
+
+        /* List items */
+        .item-list {
+            padding: 0;
+        }
+
+        .item-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--analytics-border);
+        }
+
+        .item-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-list-item:hover {
+            background: #f8fafc;
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .item-query {
+            font-weight: 500;
+            color: var(--analytics-text);
+        }
+
+        .item-meta {
+            font-size: 0.8rem;
+            color: var(--analytics-text-muted);
+        }
+
+        .item-count {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--analytics-text);
+        }
+
+        .item-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .item-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .item-bar-fill.success {
+            background: var(--analytics-success);
+        }
+
+        .item-bar-fill.warning {
+            background: var(--analytics-warning);
+        }
+
+        .item-bar-fill.danger {
+            background: var(--analytics-danger);
+        }
+
+        /* Failed searches list */
+        .failed-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--analytics-border);
+        }
+
+        .failed-item:last-child {
+            border-bottom: none;
+        }
+
+        .failed-item:hover {
+            background: #fef2f2;
+        }
+
+        .failed-priority {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 6px;
+        }
+
+        .failed-priority.critical {
+            background: var(--analytics-danger);
+        }
+
+        .failed-priority.high {
+            background: var(--analytics-warning);
+        }
+
+        .failed-priority.medium {
+            background: #facc15;
+        }
+
+        .failed-content {
+            flex: 1;
+        }
+
+        .failed-query {
+            font-weight: 500;
+            color: var(--analytics-text);
+            margin-bottom: 4px;
+        }
+
+        .failed-stats {
+            font-size: 0.8rem;
+            color: var(--analytics-text-muted);
+        }
+
+        /* Recommendations section */
+        .recommendations-section {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .recommendation-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--analytics-border);
+        }
+
+        .recommendation-card:last-child {
+            border-bottom: none;
+        }
+
+        .recommendation-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .recommendation-badge.critical {
+            background: #fef2f2;
+            color: var(--analytics-danger);
+        }
+
+        .recommendation-badge.high {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-title {
+            font-weight: 600;
+            color: var(--analytics-text);
+            margin-bottom: 4px;
+        }
+
+        .recommendation-desc {
+            font-size: 0.875rem;
+            color: var(--analytics-text-muted);
+        }
+
+        .recommendation-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .recommendation-actions button {
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--analytics-primary);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #4f46e5;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--analytics-text-muted);
+            border: 1px solid var(--analytics-border);
+        }
+
+        .btn-ghost:hover {
+            background: #f8fafc;
+            color: var(--analytics-text);
+        }
+
+        /* Footer */
+        .widget-footer {
+            padding: 12px 24px;
+            background: #f8fafc;
+            border-top: 1px solid var(--analytics-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--analytics-text-muted);
+        }
+
+        .widget-footer a {
+            color: var(--analytics-primary);
+            text-decoration: none;
+        }
+
+        .widget-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Legend */
+        .wireframe-note {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 0.875rem;
+            color: #92400e;
+        }
+
+        .wireframe-note strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="wireframe-note">
+        <strong>Wireframe / Mockup</strong>
+        This is a static wireframe of the Manager Wizard Search Analytics widget for Command Center integration.
+        The actual implementation will use React/Recharts with live data from Supabase.
+    </div>
+
+    <div class="widget-container">
+        <div class="widget-header">
+            <h2>
+                <i class="fas fa-chart-line"></i>
+                Manager Wizard Search Analytics
+            </h2>
+            <div class="time-filter">
+                <button>Today</button>
+                <button class="active">7 Days</button>
+                <button>30 Days</button>
+            </div>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card warning">
+                <div class="kpi-label">Success Rate</div>
+                <div class="kpi-value">16.2%</div>
+                <div class="kpi-trend down">
+                    <i class="fas fa-arrow-down"></i> 2.1% vs last week
+                </div>
+            </div>
+            <div class="kpi-card success">
+                <div class="kpi-label">AI Answers</div>
+                <div class="kpi-value">42.5%</div>
+                <div class="kpi-trend up">
+                    <i class="fas fa-arrow-up"></i> 5.3% vs last week
+                </div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Avg Response</div>
+                <div class="kpi-value">312ms</div>
+                <div class="kpi-trend up">
+                    <i class="fas fa-arrow-up"></i> 45ms faster
+                </div>
+            </div>
+            <div class="kpi-card danger">
+                <div class="kpi-label">Zero Results</div>
+                <div class="kpi-value">38.5%</div>
+                <div class="kpi-trend up">
+                    <i class="fas fa-arrow-down"></i> 3.2% vs last week
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="content-section">
+                <div class="section-header">
+                    <span><i class="fas fa-chart-bar"></i> Search Volume (7 Days)</span>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-placeholder">
+                        <div class="chart-bar" style="height: 60px" data-label="Mon"></div>
+                        <div class="chart-bar" style="height: 85px" data-label="Tue"></div>
+                        <div class="chart-bar" style="height: 120px" data-label="Wed"></div>
+                        <div class="chart-bar" style="height: 95px" data-label="Thu"></div>
+                        <div class="chart-bar" style="height: 110px" data-label="Fri"></div>
+                        <div class="chart-bar" style="height: 40px" data-label="Sat"></div>
+                        <div class="chart-bar" style="height: 30px" data-label="Sun"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-header">
+                    <span><i class="fas fa-exclamation-triangle"></i> Top Failed Queries</span>
+                    <a href="#">View All</a>
+                </div>
+                <div class="item-list">
+                    <div class="failed-item">
+                        <div class="failed-priority critical"></div>
+                        <div class="failed-content">
+                            <div class="failed-query">pet policy vista vera</div>
+                            <div class="failed-stats">12 failures &middot; 4 users &middot; Last: 2h ago</div>
+                        </div>
+                    </div>
+                    <div class="failed-item">
+                        <div class="failed-priority critical"></div>
+                        <div class="failed-content">
+                            <div class="failed-query">rental restrictions highpointe</div>
+                            <div class="failed-stats">8 failures &middot; 3 users &middot; Last: 5h ago</div>
+                        </div>
+                    </div>
+                    <div class="failed-item">
+                        <div class="failed-priority high"></div>
+                        <div class="failed-content">
+                            <div class="failed-query">pool hours falcon pointe</div>
+                            <div class="failed-stats">6 failures &middot; 2 users &middot; Last: 1d ago</div>
+                        </div>
+                    </div>
+                    <div class="failed-item">
+                        <div class="failed-priority medium"></div>
+                        <div class="failed-content">
+                            <div class="failed-query">solar panel guidelines</div>
+                            <div class="failed-stats">4 failures &middot; 2 users &middot; Last: 2d ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-header">
+                    <span><i class="fas fa-fire"></i> Top Searches Today</span>
+                    <a href="#">View All</a>
+                </div>
+                <div class="item-list">
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">falcon pointe pool rules</span>
+                            <div class="item-bar" style="width: 200px">
+                                <div class="item-bar-fill success" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        <span class="item-count">23</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">avalon fence stain</span>
+                            <div class="item-bar" style="width: 200px">
+                                <div class="item-bar-fill success" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <span class="item-count">18</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">heritage park rules</span>
+                            <div class="item-bar" style="width: 200px">
+                                <div class="item-bar-fill warning" style="width: 71%"></div>
+                            </div>
+                        </div>
+                        <span class="item-count">15</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">wildhorse ranch ccr</span>
+                            <div class="item-bar" style="width: 200px">
+                                <div class="item-bar-fill danger" style="width: 40%"></div>
+                            </div>
+                        </div>
+                        <span class="item-count">12</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-header">
+                    <span><i class="fas fa-building"></i> Top Communities</span>
+                    <a href="#">View All</a>
+                </div>
+                <div class="item-list">
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">Falcon Pointe</span>
+                            <span class="item-meta">67% success rate</span>
+                        </div>
+                        <span class="item-count">45</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">Chandler Creek</span>
+                            <span class="item-meta">72% success rate</span>
+                        </div>
+                        <span class="item-count">32</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">Vista Vera</span>
+                            <span class="item-meta">48% success rate</span>
+                        </div>
+                        <span class="item-count">28</span>
+                    </div>
+                    <div class="item-list-item">
+                        <div class="item-info">
+                            <span class="item-query">Heritage Park</span>
+                            <span class="item-meta">81% success rate</span>
+                        </div>
+                        <span class="item-count">21</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recommendations-section">
+                <div class="section-header">
+                    <span><i class="fas fa-lightbulb"></i> Improvement Recommendations (3 Critical)</span>
+                    <a href="#">View All</a>
+                </div>
+                <div class="recommendation-card">
+                    <span class="recommendation-badge critical">Critical</span>
+                    <div class="recommendation-content">
+                        <div class="recommendation-title">Create Pet Policy for Vista Vera</div>
+                        <div class="recommendation-desc">12 failed searches from 4 users in the past 7 days. Pet rules exist in CC&Rs Section 5.3 but extraction fails.</div>
+                    </div>
+                    <div class="recommendation-actions">
+                        <button class="btn-primary">Create Doc</button>
+                        <button class="btn-ghost">Dismiss</button>
+                    </div>
+                </div>
+                <div class="recommendation-card">
+                    <span class="recommendation-badge critical">Critical</span>
+                    <div class="recommendation-content">
+                        <div class="recommendation-title">Add Rental Restrictions for Highpointe</div>
+                        <div class="recommendation-desc">8 failed searches. Rental info buried in CC&Rs - consider standalone document.</div>
+                    </div>
+                    <div class="recommendation-actions">
+                        <button class="btn-primary">Create Doc</button>
+                        <button class="btn-ghost">Dismiss</button>
+                    </div>
+                </div>
+                <div class="recommendation-card">
+                    <span class="recommendation-badge high">High</span>
+                    <div class="recommendation-content">
+                        <div class="recommendation-title">Add Pool Hours for Falcon Pointe</div>
+                        <div class="recommendation-desc">6 failed searches. Heritage Park has pool hours doc - use as template.</div>
+                    </div>
+                    <div class="recommendation-actions">
+                        <button class="btn-primary">Create Doc</button>
+                        <button class="btn-ghost">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="widget-footer">
+            <span>Last updated: Jan 28, 2026 at 2:45 PM CT</span>
+            <span>
+                <a href="#">Export CSV</a> &middot;
+                <a href="#">Full Dashboard</a>
+            </span>
+        </div>
+    </div>
+
+    <div style="margin-top: 40px; padding: 20px; background: #f0fdf4; border-radius: 12px; border: 1px solid #86efac;">
+        <h3 style="color: #166534; margin-bottom: 12px;"><i class="fas fa-check-circle"></i> Design Specifications</h3>
+        <ul style="color: #166534; line-height: 2;">
+            <li><strong>KPI Cards:</strong> 4 primary metrics with trend indicators</li>
+            <li><strong>Chart:</strong> Recharts AreaChart for 7-day volume trend</li>
+            <li><strong>Failed Queries:</strong> Priority indicators (red=critical, orange=high, yellow=medium)</li>
+            <li><strong>Top Searches:</strong> Horizontal bars showing success rate</li>
+            <li><strong>Recommendations:</strong> Action-oriented cards with Create Doc / Dismiss buttons</li>
+            <li><strong>Time Filter:</strong> Today, 7 Days, 30 Days toggle</li>
+            <li><strong>Color Palette:</strong> Indigo primary (#6366f1), success green, warning amber, danger red</li>
+        </ul>
+    </div>
+</body>
+</html>

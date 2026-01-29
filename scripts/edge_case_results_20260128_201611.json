@@ -1,0 +1,394 @@
+{
+  "timestamp": "2026-01-28T20:16:11.608305",
+  "base_url": "https://manager-wizard-138752496729.us-central1.run.app",
+  "total_tests": 29,
+  "total_passed": 29,
+  "success_rate": 100.0,
+  "category_stats": {
+    "name_hyphenated": {
+      "passed": 2,
+      "total": 2
+    },
+    "name_with_title": {
+      "passed": 3,
+      "total": 3
+    },
+    "name_with_initial": {
+      "passed": 2,
+      "total": 2
+    },
+    "name_dutch_prefix": {
+      "passed": 2,
+      "total": 2
+    },
+    "name_saint_prefix": {
+      "passed": 1,
+      "total": 1
+    },
+    "name_three_word": {
+      "passed": 1,
+      "total": 1
+    },
+    "account_letters_only": {
+      "passed": 2,
+      "total": 2
+    },
+    "account_mixed_format": {
+      "passed": 2,
+      "total": 2
+    },
+    "account_leading_zeros": {
+      "passed": 2,
+      "total": 2
+    },
+    "unit_alphanumeric": {
+      "passed": 2,
+      "total": 2
+    },
+    "unit_building_pattern": {
+      "passed": 2,
+      "total": 2
+    },
+    "unit_phase_pattern": {
+      "passed": 1,
+      "total": 1
+    },
+    "address_apartment_only": {
+      "passed": 2,
+      "total": 2
+    },
+    "address_with_city": {
+      "passed": 1,
+      "total": 1
+    },
+    "address_highway": {
+      "passed": 2,
+      "total": 2
+    },
+    "community_generic_term": {
+      "passed": 2,
+      "total": 2
+    }
+  },
+  "results": [
+    {
+      "query": "Garcia-Lopez",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 3351,
+      "notes": "Should search for 'Garcia' AND 'Lopez'",
+      "error": null,
+      "message": null,
+      "category": "name_hyphenated"
+    },
+    {
+      "query": "Smith-Jones",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 771,
+      "notes": "Should search for 'Smith' AND 'Jones'",
+      "error": null,
+      "message": null,
+      "category": "name_hyphenated"
+    },
+    {
+      "query": "Dr. Brown",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 666,
+      "notes": "Should strip 'Dr.' and search 'Brown'",
+      "error": null,
+      "message": null,
+      "category": "name_with_title"
+    },
+    {
+      "query": "Mrs. Johnson",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 619,
+      "notes": "Should strip 'Mrs.' and search 'Johnson'",
+      "error": null,
+      "message": null,
+      "category": "name_with_title"
+    },
+    {
+      "query": "Mr. Williams",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 649,
+      "notes": "Should strip 'Mr.' and search 'Williams'",
+      "error": null,
+      "message": null,
+      "category": "name_with_title"
+    },
+    {
+      "query": "A. Smith",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 644,
+      "notes": "Should search for first name starting with 'A' + 'Smith'",
+      "error": null,
+      "message": null,
+      "category": "name_with_initial"
+    },
+    {
+      "query": "J Smith",
+      "type": "name",
+      "status": "PASS",
+      "count": 5,
+      "elapsed_ms": 730,
+      "notes": "Should handle single-letter first name",
+      "error": null,
+      "message": null,
+      "category": "name_with_initial"
+    },
+    {
+      "query": "van Heusen",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 773,
+      "notes": "Should search for 'van' and 'Heusen' together",
+      "error": null,
+      "message": null,
+      "category": "name_dutch_prefix"
+    },
+    {
+      "query": "Von Trapp",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 638,
+      "notes": "Should handle 'Von' prefix",
+      "error": null,
+      "message": null,
+      "category": "name_dutch_prefix"
+    },
+    {
+      "query": "St. James",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 650,
+      "notes": "Should expand 'St.' to 'Saint' and search",
+      "error": null,
+      "message": null,
+      "category": "name_saint_prefix"
+    },
+    {
+      "query": "Mary Jane Watson",
+      "type": "name",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 729,
+      "notes": "Should search for all three parts",
+      "error": null,
+      "message": null,
+      "category": "name_three_word"
+    },
+    {
+      "query": "ABC",
+      "type": "account",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 964,
+      "notes": "Should return empty with helpful message, not timeout",
+      "error": null,
+      "message": null,
+      "category": "account_letters_only"
+    },
+    {
+      "query": "XYZ",
+      "type": "account",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 870,
+      "notes": "Should return empty quickly",
+      "error": null,
+      "message": null,
+      "category": "account_letters_only"
+    },
+    {
+      "query": "123ABC",
+      "type": "account",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 844,
+      "notes": "Should try 'ABC123' format",
+      "error": null,
+      "message": null,
+      "category": "account_mixed_format"
+    },
+    {
+      "query": "51515FAL",
+      "type": "account",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 848,
+      "notes": "Should try 'FAL51515' format",
+      "error": null,
+      "message": null,
+      "category": "account_mixed_format"
+    },
+    {
+      "query": "000123",
+      "type": "account",
+      "status": "PASS",
+      "count": 13,
+      "elapsed_ms": 975,
+      "notes": "Should strip zeros and search '123'",
+      "error": null,
+      "message": null,
+      "category": "account_leading_zeros"
+    },
+    {
+      "query": "00051515",
+      "type": "account",
+      "status": "PASS",
+      "count": 1,
+      "elapsed_ms": 842,
+      "notes": "Should strip zeros and search '51515'",
+      "error": null,
+      "message": null,
+      "category": "account_leading_zeros"
+    },
+    {
+      "query": "unit 5A",
+      "type": "unit",
+      "status": "PASS",
+      "count": 6,
+      "elapsed_ms": 1022,
+      "notes": "Should search for '5A' in unit/lot fields",
+      "error": null,
+      "message": null,
+      "category": "unit_alphanumeric"
+    },
+    {
+      "query": "unit 12B",
+      "type": "unit",
+      "status": "PASS",
+      "count": 3,
+      "elapsed_ms": 973,
+      "notes": "Should search for '12B'",
+      "error": null,
+      "message": null,
+      "category": "unit_alphanumeric"
+    },
+    {
+      "query": "bldg 2",
+      "type": "unit",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 910,
+      "notes": "Should recognize 'bldg' as valid prefix",
+      "error": null,
+      "message": null,
+      "category": "unit_building_pattern"
+    },
+    {
+      "query": "building 5",
+      "type": "unit",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 918,
+      "notes": "Should recognize 'building' as valid prefix",
+      "error": null,
+      "message": null,
+      "category": "unit_building_pattern"
+    },
+    {
+      "query": "phase 1",
+      "type": "unit",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 873,
+      "notes": "Should recognize 'phase' as valid prefix or fail gracefully",
+      "error": null,
+      "message": null,
+      "category": "unit_phase_pattern"
+    },
+    {
+      "query": "apt 5",
+      "type": "address",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 1146,
+      "notes": "Should redirect to unit search or handle gracefully",
+      "error": null,
+      "message": null,
+      "category": "address_apartment_only"
+    },
+    {
+      "query": "apartment 10",
+      "type": "address",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 1122,
+      "notes": "Should redirect to unit search",
+      "error": null,
+      "message": null,
+      "category": "address_apartment_only"
+    },
+    {
+      "query": "100 Main, Austin",
+      "type": "address",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 1076,
+      "notes": "Should strip city and search '100 Main'",
+      "error": null,
+      "message": null,
+      "category": "address_with_city"
+    },
+    {
+      "query": "IH 35",
+      "type": "address",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 1050,
+      "notes": "Should return empty with message, not search",
+      "error": null,
+      "message": null,
+      "category": "address_highway"
+    },
+    {
+      "query": "Mopac",
+      "type": "address",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 650,
+      "notes": "Should return empty with message",
+      "error": null,
+      "message": null,
+      "category": "address_highway"
+    },
+    {
+      "query": "Oaks",
+      "type": "community",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 974,
+      "notes": "Should warn that term is too generic or return filtered results",
+      "error": null,
+      "message": null,
+      "category": "community_generic_term"
+    },
+    {
+      "query": "Park",
+      "type": "community",
+      "status": "PASS",
+      "count": 0,
+      "elapsed_ms": 720,
+      "notes": "Should warn or filter appropriately",
+      "error": null,
+      "message": null,
+      "category": "community_generic_term"
+    }
+  ]
+}
