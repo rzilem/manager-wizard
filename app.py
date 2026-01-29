@@ -341,8 +341,9 @@ COLUMNS = [
     'cr258_allphones', 'cr258_allemails', 'cr258_tenantname',
     'cr258_collprovider', 'cr258_lotnumber', 'cr258_unitnumber',
     'cr258_tags', 'cr258_lastpaymentdate', 'cr258_lastpaymentamount',
-    # Board member indicator
-    'cr258_boardmember',
+    # Smart tag fields
+    'cr258_boardmember',  # Board member indicator
+    'cr258_settleddate',  # Settlement date for New Owner tag
     # Sync timestamp
     'modifiedon'
 ]
@@ -655,6 +656,21 @@ def format_homeowner(rec):
         except:
             pass
 
+    # Is tenant property (has a tenant name)?
+    is_tenant = bool(tenant_name)
+
+    # Has payment plan (check collection status for "plan" keyword)?
+    has_payment_plan = 'plan' in status.lower() if status else False
+
+    # VIP/Longtime owner (settled more than 10 years ago)?
+    is_longtime_owner = False
+    if settled_date:
+        try:
+            settled_dt = datetime.fromisoformat(settled_date.replace('Z', '+00:00'))
+            is_longtime_owner = (now - settled_dt.replace(tzinfo=None)).days > 3650  # 10 years
+        except:
+            pass
+
     return {
         'owner_name': rec.get('cr258_owner_name', 'Unknown'),
         'property_address': rec.get('cr258_property_address', 'N/A'),
@@ -679,6 +695,9 @@ def format_homeowner(rec):
         # Smart tags for customer service
         'is_board_member': rec.get('cr258_boardmember') == True or rec.get('cr258_boardmember') == 'Yes' or rec.get('cr258_boardmember') == 1 or 'Board' in tags,
         'is_new_owner': is_new_owner,
+        'is_tenant': is_tenant,
+        'has_payment_plan': has_payment_plan,
+        'is_longtime_owner': is_longtime_owner,
         'last_synced': last_synced,
         'last_synced_display': last_synced_display
     }
@@ -849,8 +868,9 @@ def search_azure_documents(query, community=None, top=10):
     # Build OData filters for community and archive exclusion
     filters = []
 
-    # Always exclude Archive folders - outdated documents
+    # Always exclude Archive and _To Be Filed folders - outdated/unprocessed documents
     filters.append("not search.ismatch('Archive', 'file_path')")
+    filters.append("not search.ismatch('_To Be Filed', 'file_path')")
 
     # Filter by community using PHRASE matching (quotes prevent word-level matching)
     if community:
@@ -1612,36 +1632,101 @@ def search_by_phone(phone, community_filter=None):
 
 
 def search_by_address(address, community_filter=None):
-    """Search by address - flexible matching with multi-word support."""
+    """Search by address - enhanced with normalization, parsing, and fuzzy matching."""
+    from address_utils import (
+        AddressParser, address_similarity_score, extract_search_terms,
+        STREET_TYPE_MAPPINGS, MIN_ADDRESS_MATCH_SCORE, FUZZY_ADDRESS_MATCH_SCORE
+    )
+
+    parser = AddressParser()
+    query_parsed = parser.parse(address)
     safe_address = address.replace("'", "''")
 
-    # First try exact contains match
-    filter_expr = f"contains(cr258_property_address,'{safe_address}')"
+    # Strategy 1: If we have a street number, use precise matching
+    if query_parsed.street_number:
+        # Build filter starting with street number at the beginning
+        safe_number = query_parsed.street_number.replace("'", "''")
+
+        # Try startswith for street number (more precise)
+        filter_expr = f"startswith(cr258_property_address, '{safe_number} ')"
+
+        # Add street name keyword if available
+        if query_parsed.street_name:
+            name_words = query_parsed.street_name.split()
+            if name_words:
+                first_word = name_words[0].replace("'", "''")
+                if len(first_word) >= 3:
+                    filter_expr += f" and contains(cr258_property_address, '{first_word}')"
+
+        # Add community filter
+        if community_filter:
+            safe_community = community_filter.replace("'", "''")
+            filter_expr = f"contains(cr258_assoc_name, '{safe_community}') and ({filter_expr})"
+
+        results = query_dataverse(filter_expr, top=50)
+
+        # If no results, try broader search with just street number
+        if results is None:
+            return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
+
+        if not results:
+            filter_expr = f"startswith(cr258_property_address, '{safe_number} ')"
+            if community_filter:
+                filter_expr = f"contains(cr258_assoc_name, '{safe_community}') and ({filter_expr})"
+            results = query_dataverse(filter_expr, top=50)
+
+        # Score and rank results using address similarity
+        if results:
+            scored_results = []
+            for rec in results:
+                if is_excluded_community(rec.get('cr258_assoc_name')):
+                    continue
+
+                candidate_address = rec.get('cr258_property_address', '')
+                candidate_parsed = parser.parse(candidate_address)
+                score = address_similarity_score(query_parsed, candidate_parsed)
+
+                if score >= FUZZY_ADDRESS_MATCH_SCORE:
+                    homeowner = format_homeowner(rec)
+                    homeowner['_match_score'] = round(score, 3)
+                    homeowner['_is_fuzzy'] = score < MIN_ADDRESS_MATCH_SCORE
+                    scored_results.append((score, homeowner))
+
+            # Sort by score descending
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            homeowners = [h for _, h in scored_results]
+
+            return jsonify({
+                'search_type': 'address',
+                'query': address,
+                'community_filter': community_filter,
+                'homeowners': homeowners,
+                'count': len(homeowners),
+                'parsed': query_parsed.to_dict() if hasattr(query_parsed, 'to_dict') else None
+            })
+
+    # Strategy 2: Fallback for addresses without clear street number
+    # Extract keywords and search
+    stop_words = {'street', 'drive', 'lane', 'road', 'avenue', 'court', 'circle',
+                  'unit', 'apt', 'apartment', 'suite', 'austin', 'texas', 'the',
+                  'st', 'dr', 'ln', 'rd', 'ave', 'ct', 'cir', 'blvd', 'way'}
+    words = [w for w in re.split(r'\W+', safe_address.lower()) if len(w) >= 3 and w not in stop_words]
+
+    if words:
+        conditions = [f"contains(cr258_property_address, '{w}')" for w in words[:3]]
+        filter_expr = ' and '.join(conditions)
+    else:
+        filter_expr = f"contains(cr258_property_address, '{safe_address}')"
 
     if community_filter:
         safe_community = community_filter.replace("'", "''")
-        filter_expr += f" and contains(cr258_assoc_name,'{safe_community}')"
+        filter_expr = f"contains(cr258_assoc_name, '{safe_community}') and ({filter_expr})"
 
-    results = query_dataverse(filter_expr, top=20)
+    results = query_dataverse(filter_expr, top=30)
 
     if results is None:
         return jsonify({'error': 'Dataverse connection failed', 'homeowners': []}), 503
 
-    # If no results and address has multiple parts, try searching for key parts
-    if not results:
-        # Extract street number and key words
-        parts = safe_address.split()
-        if len(parts) >= 2:
-            # Try with just the first part (usually street number) and second part
-            key_parts = parts[:2]
-            conditions = [f"contains(cr258_property_address,'{part}')" for part in key_parts if len(part) > 1]
-            if conditions:
-                filter_expr = ' and '.join(conditions)
-                if community_filter:
-                    filter_expr = f"contains(cr258_assoc_name,'{safe_community}') and ({filter_expr})"
-                results = query_dataverse(filter_expr, top=20)
-
-    # Exclude former clients
     filtered = [r for r in (results or []) if not is_excluded_community(r.get('cr258_assoc_name'))]
     homeowners = [format_homeowner(r) for r in filtered]
 
@@ -1650,7 +1735,8 @@ def search_by_address(address, community_filter=None):
         'query': address,
         'community_filter': community_filter,
         'homeowners': homeowners,
-        'count': len(homeowners)
+        'count': len(homeowners),
+        'fallback_used': True
     })
 
 

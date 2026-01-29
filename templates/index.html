@@ -940,6 +940,9 @@
         .badge-30days { background: var(--warning); color: white; }
         .badge-board-member { background: #7c3aed; color: white; }
         .badge-new-owner { background: #0891b2; color: white; }
+        .badge-tenant { background: #6366f1; color: white; }
+        .badge-payment-plan { background: #f59e0b; color: white; }
+        .badge-longtime-owner { background: #059669; color: white; }
 
         /* ============================================
            ACCOUNT LEDGER STYLES
@@ -2222,6 +2225,24 @@
                 newOwnerBadge = '<span class="status-badge badge-new-owner"><i class="fas fa-user-plus"></i> NEW OWNER</span>';
             }
 
+            // Tenant badge (property is rented)
+            let tenantBadge = '';
+            if (h.is_tenant) {
+                tenantBadge = '<span class="status-badge badge-tenant"><i class="fas fa-home-user"></i> TENANT</span>';
+            }
+
+            // Payment plan badge
+            let paymentPlanBadge = '';
+            if (h.has_payment_plan) {
+                paymentPlanBadge = '<span class="status-badge badge-payment-plan"><i class="fas fa-calendar-check"></i> PAYMENT PLAN</span>';
+            }
+
+            // Longtime owner badge (10+ years)
+            let longtimeOwnerBadge = '';
+            if (h.is_longtime_owner) {
+                longtimeOwnerBadge = '<span class="status-badge badge-longtime-owner"><i class="fas fa-award"></i> VIP</span>';
+            }
+
             let statusBadge = '';
             if (isAttorney) {
                 statusBadge = '<span class="status-badge badge-attorney">ATTORNEY</span>';
@@ -2311,7 +2332,7 @@
                         <div>
                             <div class="card-name">${escapeHtml(h.owner_name)}</div>
                             <div class="card-community">${escapeHtml(h.community)}</div>
-                            ${boardMemberBadge}${newOwnerBadge}${statusBadge}
+                            ${boardMemberBadge}${newOwnerBadge}${longtimeOwnerBadge}${tenantBadge}${paymentPlanBadge}${statusBadge}
                         </div>
                         ${balanceHeaderHtml}
                     </div>
