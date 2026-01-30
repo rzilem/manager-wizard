@@ -4146,6 +4146,14 @@
         };
 
         function initGamification() {
+            // Check for reset URL parameter
+            if (new URLSearchParams(window.location.search).get('reset') === 'wizard') {
+                resetWizard();
+                // Clean up URL
+                window.history.replaceState({}, '', window.location.pathname);
+                return;
+            }
+
             // Load persisted state
             gamificationState.searchCount = parseInt(localStorage.getItem('mw_search_count') || '0');
             gamificationState.wizardUnlocked = localStorage.getItem('mw_wizard_unlocked') === 'true';
