@@ -105,7 +105,64 @@
             justify-content: center;
             font-size: 18px;
             color: white;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+            position: relative;
         }
+        /* Level 2: Wizard Revealed (10 searches) - icon becomes wizard image */
+        .logo-icon.wizard-revealed {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed, #4f46e5);
+            box-shadow: 0 0 12px rgba(124, 58, 237, 0.4);
+        }
+        .logo-icon.wizard-revealed i { display: none; }
+        .logo-icon.wizard-revealed .logo-wizard-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        /* Level 4: Archmage (30 searches) - bigger with aura */
+        .logo-icon.archmage-level {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 40px rgba(139, 92, 246, 0.2);
+        }
+        .logo-icon.archmage-level i { display: none; }
+        .logo-icon.archmage-level .logo-wizard-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        /* Level 5: Grand Wizard (50 searches) - golden glow + pulse */
+        .logo-icon.grand-wizard-level {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.6), 0 0 50px rgba(245, 158, 11, 0.2);
+            animation: logoGrandPulse 3s ease-in-out infinite;
+        }
+        .logo-icon.grand-wizard-level i { display: none; }
+        .logo-icon.grand-wizard-level .logo-wizard-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        @keyframes logoGrandPulse {
+            0%, 100% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.6), 0 0 50px rgba(245, 158, 11, 0.2); }
+            50% { box-shadow: 0 0 35px rgba(245, 158, 11, 0.8), 0 0 70px rgba(245, 158, 11, 0.3); }
+        }
+        .logo-wizard-img { display: none; }
 
         .logo-text {
             display: flex;
@@ -2465,8 +2522,9 @@
     <header class="header">
         <div class="header-content">
             <a href="/" class="logo">
-                <div class="logo-icon">
+                <div class="logo-icon" id="logoIcon">
                     <i class="fas fa-wand-magic-sparkles"></i>
+                    <img class="logo-wizard-img" src="https://storage.googleapis.com/pspm-community-images/wizard/wizard-character.png" alt="Wizard">
                 </div>
                 <div class="logo-text">
                     <span class="logo-title">Manager Wizard</span>
@@ -4130,6 +4188,37 @@
             if (gamificationState.searchCount >= 5) {
                 addLogoSparkle();
             }
+
+            // Upgrade logo based on level
+            updateLogoLevel();
+        }
+
+        function updateLogoLevel(animate) {
+            const logoIcon = document.getElementById('logoIcon');
+            if (!logoIcon) return;
+            const count = gamificationState.searchCount;
+
+            // Remove all level classes
+            logoIcon.classList.remove('wizard-revealed', 'archmage-level', 'grand-wizard-level');
+
+            if (count >= 50) {
+                logoIcon.classList.add('grand-wizard-level');
+            } else if (count >= 30) {
+                logoIcon.classList.add('archmage-level');
+            } else if (count >= 10) {
+                logoIcon.classList.add('wizard-revealed');
+            }
+
+            // Animate the transition if requested (on milestone hit)
+            if (animate && count >= 10) {
+                logoIcon.style.transform = 'scale(0.5) rotate(-20deg)';
+                setTimeout(() => {
+                    logoIcon.style.transform = 'scale(1.2) rotate(5deg)';
+                    setTimeout(() => {
+                        logoIcon.style.transform = '';
+                    }, 300);
+                }, 100);
+            }
         }
 
         function saveGamificationState() {
@@ -4237,6 +4326,9 @@
 
             // Apply milestone-specific effects
             applyMilestoneEffect(milestone.effect);
+
+            // Upgrade the header logo
+            updateLogoLevel(true);
         }
 
         function dismissMilestone() {
