@@ -1792,9 +1792,10 @@
             100% { transform: translateX(0) rotate(0deg) scale(1); opacity: 1; }
         }
         @keyframes portalOpen {
-            0% { transform: scale(0); border-radius: 50%; opacity: 0; }
-            50% { transform: scale(1.1); border-radius: 20%; opacity: 0.8; }
-            100% { transform: scale(1); border-radius: 20px; opacity: 1; }
+            0% { transform: scale(0) rotate(-5deg); opacity: 0; }
+            40% { transform: scale(1.08) rotate(1deg); opacity: 1; }
+            70% { transform: scale(0.97) rotate(-0.5deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
         }
         @keyframes floatParticle {
             0% { transform: translateY(0) translateX(0); opacity: 0; }
@@ -1824,6 +1825,55 @@
             0% { background-position: -200% center; }
             100% { background-position: 200% center; }
         }
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0); }
+            10% { transform: translate(-8px, -5px); }
+            20% { transform: translate(8px, 3px); }
+            30% { transform: translate(-6px, 5px); }
+            40% { transform: translate(6px, -3px); }
+            50% { transform: translate(-4px, 2px); }
+            60% { transform: translate(4px, -2px); }
+            70% { transform: translate(-2px, 4px); }
+            80% { transform: translate(2px, -1px); }
+            90% { transform: translate(-1px, 1px); }
+        }
+        @keyframes goldenFlash {
+            0% { opacity: 0; }
+            15% { opacity: 0.7; }
+            100% { opacity: 0; }
+        }
+        @keyframes wizardSlideUp {
+            0% { transform: translateY(100px) scale(0.8); opacity: 0; }
+            60% { transform: translateY(-10px) scale(1.03); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes titleReveal {
+            0% { transform: scale(0.3); opacity: 0; letter-spacing: 0.5em; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); letter-spacing: 0.05em; }
+        }
+        @keyframes subtitleFade {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes xpFill {
+            0% { width: var(--xp-from, 0%); }
+            100% { width: var(--xp-to, 100%); }
+        }
+        @keyframes firework {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-200px) scale(0); opacity: 0; }
+        }
+        @keyframes confettiDrop {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        @keyframes levelUpPulse {
+            0% { text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+            50% { text-shadow: 0 0 40px rgba(251, 191, 36, 1), 0 0 80px rgba(251, 191, 36, 0.5); }
+            100% { text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+        }
 
         /* ============================================
            GAMIFICATION ELEMENTS
@@ -1846,7 +1896,7 @@
             animation: sparkle 2s ease-in-out infinite;
         }
 
-        /* Wizard avatar (10+ searches) */
+        /* Wizard avatar (10+ searches) - LARGER and more prominent */
         .wizard-avatar-container {
             position: fixed;
             bottom: 20px;
@@ -1854,18 +1904,23 @@
             z-index: 200;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease, transform 0.5s ease;
         }
         .wizard-avatar-container.visible {
             opacity: 1;
             pointer-events: auto;
         }
         .wizard-avatar-container img {
-            width: 90px;
+            width: 140px;
             height: auto;
-            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 6px 20px rgba(139, 92, 246, 0.5));
             animation: cosmicFloat 3s ease-in-out infinite;
             cursor: pointer;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+        .wizard-avatar-container img:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 8px 30px rgba(139, 92, 246, 0.7));
         }
 
         /* Speech bubble */
@@ -1903,77 +1958,158 @@
             border-top: 8px solid white;
         }
 
-        /* Milestone overlay */
+        /* Screen effects overlay */
+        .screen-flash {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 9999; pointer-events: none; opacity: 0;
+            background: radial-gradient(circle, rgba(251,191,36,0.6) 0%, rgba(139,92,246,0.3) 50%, transparent 80%);
+        }
+        .screen-flash.active { animation: goldenFlash 0.8s ease-out forwards; }
+        .screen-shake { animation: screenShake 0.5s ease-out; }
+
+        /* Milestone overlay - DRAMATIC */
         .milestone-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0);
             z-index: 10000;
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.6s ease, background 0.6s ease;
         }
         .milestone-overlay.active {
             opacity: 1;
             pointer-events: auto;
+            background: rgba(5, 2, 20, 0.92);
         }
         .milestone-card {
-            background: linear-gradient(135deg, #1a1145 0%, #0d1b3e 100%);
-            border: 2px solid rgba(251, 191, 36, 0.5);
-            border-radius: 20px;
-            padding: 3rem 2.5rem;
+            background: linear-gradient(160deg, #1a0a3e 0%, #0b1628 40%, #1a1145 100%);
+            border: 2px solid rgba(251, 191, 36, 0.6);
+            border-radius: 24px;
+            padding: 0;
             text-align: center;
-            max-width: 420px;
-            animation: portalOpen 0.6s ease-out;
-            box-shadow: 0 0 60px rgba(139, 92, 246, 0.4), 0 0 120px rgba(59, 130, 246, 0.2);
+            width: 90%;
+            max-width: 520px;
+            animation: portalOpen 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow:
+                0 0 80px rgba(139, 92, 246, 0.5),
+                0 0 160px rgba(59, 130, 246, 0.2),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            overflow: hidden;
+            position: relative;
         }
-        .milestone-badge {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 1.5rem;
-            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: badgeReveal 0.8s ease-out 0.3s both;
-            box-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
+        .milestone-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 200px;
+            background: radial-gradient(ellipse at center top, rgba(139,92,246,0.3) 0%, transparent 70%);
+            pointer-events: none;
         }
-        .milestone-badge i {
-            font-size: 2.5rem;
+        .milestone-wizard-img {
+            width: 160px;
+            height: auto;
+            margin: 2rem auto 0;
+            display: block;
+            animation: wizardSlideUp 0.8s ease-out 0.2s both;
+            filter: drop-shadow(0 8px 30px rgba(139, 92, 246, 0.6));
+            position: relative;
+            z-index: 2;
+        }
+        .milestone-level-label {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(251,191,36,0.2), rgba(251,191,36,0.05));
+            border: 1px solid rgba(251,191,36,0.4);
+            border-radius: 20px;
+            padding: 4px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
             color: #fbbf24;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 1rem;
+            animation: subtitleFade 0.5s ease-out 0.5s both;
+        }
+        .milestone-badge-img {
+            width: 100px;
+            height: auto;
+            margin: 0.8rem auto;
+            display: block;
+            animation: badgeReveal 0.8s ease-out 0.6s both;
+            filter: drop-shadow(0 4px 20px rgba(251, 191, 36, 0.5));
         }
         .milestone-title {
-            font-size: 1.5rem;
-            font-weight: 800;
+            font-size: 2rem;
+            font-weight: 900;
             color: #fbbf24;
-            margin-bottom: 0.5rem;
-            text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+            margin: 0.3rem 0;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+            animation: titleReveal 0.7s ease-out 0.8s both;
+            letter-spacing: 0.05em;
         }
         .milestone-subtitle {
-            font-size: 0.95rem;
-            color: rgba(226, 217, 243, 0.8);
-            margin-bottom: 2rem;
+            font-size: 1rem;
+            color: rgba(200, 190, 230, 0.9);
+            margin: 0.5rem 2rem 0;
             line-height: 1.6;
+            animation: subtitleFade 0.6s ease-out 1.1s both;
+        }
+        .milestone-xp-section {
+            padding: 1.2rem 2rem 0;
+            animation: subtitleFade 0.5s ease-out 1.3s both;
+        }
+        .milestone-xp-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: rgba(200, 190, 230, 0.6);
+            margin-bottom: 6px;
+        }
+        .milestone-xp-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        .milestone-xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #fbbf24);
+            border-radius: 8px;
+            animation: xpFill 1.5s ease-out 1.5s both;
+            box-shadow: 0 0 12px rgba(251,191,36,0.5);
         }
         .milestone-dismiss {
-            padding: 12px 32px;
+            margin: 1.5rem auto 2rem;
+            padding: 14px 40px;
             background: linear-gradient(135deg, #8b5cf6, #6d28d9);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-weight: 700;
-            font-size: 0.95rem;
+            font-size: 1rem;
             cursor: pointer;
-            transition: all 0.2s ease;
-            letter-spacing: 0.02em;
+            transition: all 0.25s ease;
+            letter-spacing: 0.03em;
+            display: inline-block;
+            animation: subtitleFade 0.5s ease-out 1.6s both;
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
         }
         .milestone-dismiss:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 30px rgba(139, 92, 246, 0.6);
+        }
+        .milestone-confetti {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; overflow: hidden; z-index: 1;
+        }
+        .confetti-piece {
+            position: absolute;
+            width: 8px; height: 8px;
+            animation: confettiDrop linear forwards;
         }
 
         /* Wizard toggle button (header) */
@@ -3866,17 +4002,73 @@
 
         function showMilestone(milestone) {
             const overlay = document.getElementById('milestoneOverlay');
-            const badge = document.getElementById('milestoneBadge');
             const title = document.getElementById('milestoneTitle');
             const subtitle = document.getElementById('milestoneSubtitle');
+            const wizImg = document.getElementById('milestoneWizardImg');
+            const levelLabel = document.getElementById('milestoneLevelLabel');
+            const xpCurrent = document.getElementById('milestoneXpCurrent');
+            const xpNext = document.getElementById('milestoneXpNext');
+            const xpFill = document.getElementById('milestoneXpFill');
+            const confettiEl = document.getElementById('milestoneConfetti');
 
-            badge.innerHTML = `<i class="fas ${milestone.icon}"></i>`;
+            // Set content
             title.textContent = milestone.title;
             subtitle.textContent = milestone.subtitle;
 
+            // Level label
+            const milestoneIdx = MILESTONES.findIndex(m => m.count === milestone.count);
+            levelLabel.textContent = `LEVEL ${milestoneIdx + 1} ACHIEVED`;
+
+            // XP progress bar
+            const nextMilestone = MILESTONES[milestoneIdx + 1];
+            xpCurrent.textContent = `${gamificationState.searchCount} searches`;
+            xpNext.textContent = nextMilestone ? `Next: ${nextMilestone.count}` : 'MAX LEVEL';
+            const prevCount = milestoneIdx > 0 ? MILESTONES[milestoneIdx - 1].count : 0;
+            const nextCount = nextMilestone ? nextMilestone.count : milestone.count;
+            const pct = nextMilestone
+                ? ((gamificationState.searchCount - prevCount) / (nextCount - prevCount)) * 100
+                : 100;
+            xpFill.style.setProperty('--xp-from', '0%');
+            xpFill.style.setProperty('--xp-to', Math.min(pct, 100) + '%');
+
+            // Screen shake
+            document.body.classList.add('screen-shake');
+            setTimeout(() => document.body.classList.remove('screen-shake'), 500);
+
+            // Golden flash
+            const flash = document.getElementById('screenFlash');
+            flash.classList.add('active');
+            setTimeout(() => flash.classList.remove('active'), 800);
+
+            // Show overlay
             overlay.classList.add('active');
-            playAchievementSound();
-            burstParticles(30);
+
+            // Spawn confetti inside the card
+            if (confettiEl) {
+                confettiEl.innerHTML = '';
+                const colors = ['#fbbf24', '#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f97316'];
+                for (let i = 0; i < 40; i++) {
+                    const piece = document.createElement('div');
+                    piece.className = 'confetti-piece';
+                    piece.style.left = Math.random() * 100 + '%';
+                    piece.style.top = '-10px';
+                    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                    piece.style.width = (4 + Math.random() * 8) + 'px';
+                    piece.style.height = (4 + Math.random() * 8) + 'px';
+                    piece.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                    piece.style.animationDelay = (Math.random() * 0.8) + 's';
+                    confettiEl.appendChild(piece);
+                }
+            }
+
+            // Play dramatic sound based on milestone tier
+            if (milestoneIdx >= 3) {
+                playEpicFanfare();
+            } else {
+                playAchievementSound();
+            }
+            burstParticles(40 + milestoneIdx * 15);
 
             // Apply milestone-specific effects
             applyMilestoneEffect(milestone.effect);
@@ -3885,6 +4077,8 @@
         function dismissMilestone() {
             const overlay = document.getElementById('milestoneOverlay');
             overlay.classList.remove('active');
+            const confettiEl = document.getElementById('milestoneConfetti');
+            if (confettiEl) setTimeout(() => confettiEl.innerHTML = '', 500);
         }
 
         function applyMilestoneEffect(effect) {
@@ -4132,35 +4326,74 @@
         }
 
         function playAchievementSound() {
-            // Rising arpeggio fanfare
-            [0, 0.12, 0.24, 0.36, 0.48].forEach((delay, i) => {
-                setTimeout(() => playNote([523, 659, 784, 1047, 1319][i], 0.6, 'sine', 0.12), delay * 1000);
-            });
+            // Dramatic rising fanfare with harmony
+            const notes = [
+                { freq: 392, delay: 0, dur: 0.3, type: 'triangle', gain: 0.12 },    // G4
+                { freq: 523, delay: 0.12, dur: 0.3, type: 'triangle', gain: 0.12 },  // C5
+                { freq: 659, delay: 0.24, dur: 0.3, type: 'triangle', gain: 0.13 },  // E5
+                { freq: 784, delay: 0.36, dur: 0.5, type: 'triangle', gain: 0.14 },  // G5
+                { freq: 1047, delay: 0.50, dur: 0.8, type: 'sine', gain: 0.15 },     // C6 (high)
+                // Harmony layer
+                { freq: 262, delay: 0, dur: 1.2, type: 'sine', gain: 0.06 },         // C4 bass
+                { freq: 330, delay: 0.12, dur: 1.0, type: 'sine', gain: 0.05 },      // E4
+                { freq: 523, delay: 0.50, dur: 0.9, type: 'sine', gain: 0.08 },      // C5 sustained
+            ];
+            notes.forEach(n => setTimeout(() => playNote(n.freq, n.dur, n.type, n.gain), n.delay * 1000));
+        }
+
+        function playEpicFanfare() {
+            // EPIC fanfare for major milestones (Archmage+)
+            const notes = [
+                // Opening power chord
+                { freq: 196, delay: 0, dur: 0.4, type: 'sawtooth', gain: 0.08 },     // G3
+                { freq: 262, delay: 0, dur: 0.4, type: 'triangle', gain: 0.10 },     // C4
+                // Rising arpeggio
+                { freq: 330, delay: 0.15, dur: 0.25, type: 'triangle', gain: 0.10 },
+                { freq: 392, delay: 0.25, dur: 0.25, type: 'triangle', gain: 0.11 },
+                { freq: 523, delay: 0.35, dur: 0.3, type: 'triangle', gain: 0.12 },
+                { freq: 659, delay: 0.45, dur: 0.3, type: 'triangle', gain: 0.13 },
+                { freq: 784, delay: 0.55, dur: 0.4, type: 'sine', gain: 0.14 },
+                // BOOM - big sustained chord
+                { freq: 1047, delay: 0.70, dur: 1.5, type: 'sine', gain: 0.15 },     // C6
+                { freq: 784, delay: 0.70, dur: 1.5, type: 'sine', gain: 0.10 },      // G5
+                { freq: 523, delay: 0.70, dur: 1.5, type: 'triangle', gain: 0.08 },  // C5
+                { freq: 262, delay: 0.70, dur: 1.5, type: 'triangle', gain: 0.06 },  // C4 bass
+                // Sparkle tail
+                { freq: 1319, delay: 1.0, dur: 0.5, type: 'sine', gain: 0.06 },
+                { freq: 1568, delay: 1.1, dur: 0.4, type: 'sine', gain: 0.05 },
+                { freq: 2093, delay: 1.2, dur: 0.6, type: 'sine', gain: 0.04 },
+            ];
+            notes.forEach(n => setTimeout(() => playNote(n.freq, n.dur, n.type, n.gain), n.delay * 1000));
         }
 
         function playSparkleSound() {
-            [0, 0.08, 0.16].forEach((delay, i) => {
-                setTimeout(() => playNote([1200, 1500, 1800][i], 0.3, 'sine', 0.08), delay * 1000);
+            [0, 0.06, 0.12, 0.18].forEach((delay, i) => {
+                setTimeout(() => playNote([1200, 1500, 1800, 2200][i], 0.3, 'sine', 0.07), delay * 1000);
             });
         }
 
         function playWizardOnSound() {
-            // Ascending magical chord
-            [0, 0.1, 0.2, 0.3].forEach((delay, i) => {
-                setTimeout(() => playNote([392, 523, 659, 784][i], 0.8, 'triangle', 0.1), delay * 1000);
-            });
+            // Ascending magical chord with sweep
+            const notes = [
+                { freq: 262, delay: 0, dur: 1.0, type: 'sine', gain: 0.06 },
+                { freq: 392, delay: 0.08, dur: 0.8, type: 'triangle', gain: 0.10 },
+                { freq: 523, delay: 0.16, dur: 0.8, type: 'triangle', gain: 0.10 },
+                { freq: 659, delay: 0.24, dur: 0.8, type: 'sine', gain: 0.10 },
+                { freq: 784, delay: 0.32, dur: 1.0, type: 'sine', gain: 0.12 },
+                { freq: 1047, delay: 0.40, dur: 0.8, type: 'sine', gain: 0.08 },
+            ];
+            notes.forEach(n => setTimeout(() => playNote(n.freq, n.dur, n.type, n.gain), n.delay * 1000));
         }
 
         function playWizardOffSound() {
-            // Descending chord
             [0, 0.1, 0.2, 0.3].forEach((delay, i) => {
                 setTimeout(() => playNote([784, 659, 523, 392][i], 0.5, 'triangle', 0.08), delay * 1000);
             });
         }
 
         function playPortalSound() {
-            const ctx = getAudioCtx();
             try {
+                const ctx = getAudioCtx();
                 const osc = ctx.createOscillator();
                 const g = ctx.createGain();
                 osc.type = 'sawtooth';
@@ -4169,10 +4402,8 @@
                 osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 1.0);
                 g.gain.setValueAtTime(0.08, ctx.currentTime);
                 g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
-                osc.connect(g);
-                g.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 1.0);
+                osc.connect(g); g.connect(ctx.destination);
+                osc.start(); osc.stop(ctx.currentTime + 1.0);
             } catch (e) {}
         }
 
@@ -4259,13 +4490,32 @@
         <img src="https://storage.googleapis.com/pspm-community-images/wizard/wizard-character.png" alt="Manager Wizard" onclick="showRandomWizardTip()">
     </div>
 
-    <!-- Milestone Celebration Overlay -->
+    <!-- Screen Flash Effect -->
+    <div class="screen-flash" id="screenFlash"></div>
+
+    <!-- Milestone Celebration Overlay - DRAMATIC -->
     <div class="milestone-overlay" id="milestoneOverlay" onclick="if(event.target===this)dismissMilestone()">
         <div class="milestone-card" id="milestoneCard">
-            <div class="milestone-badge" id="milestoneBadge"><i class="fas fa-star"></i></div>
+            <div class="milestone-confetti" id="milestoneConfetti"></div>
+            <img class="milestone-wizard-img" id="milestoneWizardImg"
+                 src="https://storage.googleapis.com/pspm-community-images/wizard/wizard-character.png"
+                 alt="Manager Wizard">
+            <div class="milestone-level-label" id="milestoneLevelLabel">ACHIEVEMENT UNLOCKED</div>
+            <img class="milestone-badge-img" id="milestoneBadgeImg"
+                 src="https://storage.googleapis.com/pspm-community-images/wizard/wizard-badges.png"
+                 alt="Badge" style="display:none">
             <div class="milestone-title" id="milestoneTitle"></div>
             <div class="milestone-subtitle" id="milestoneSubtitle"></div>
-            <button class="milestone-dismiss" onclick="dismissMilestone()">Continue</button>
+            <div class="milestone-xp-section">
+                <div class="milestone-xp-label">
+                    <span id="milestoneXpCurrent">0 searches</span>
+                    <span id="milestoneXpNext">Next: 10</span>
+                </div>
+                <div class="milestone-xp-bar">
+                    <div class="milestone-xp-fill" id="milestoneXpFill"></div>
+                </div>
+            </div>
+            <button class="milestone-dismiss" onclick="dismissMilestone()">Continue Your Quest</button>
         </div>
     </div>
 
