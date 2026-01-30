@@ -186,6 +186,9 @@ def normalize_community_name(name):
         ' association', ' homeowners', ' home owners',
         ' property owners', ' condominium', ' condominiums',
         ' community', ' master', ' hoa', ' poa', ' coa',
+        ' condos', ' condo', ' lofts', ' loft',
+        ' townhomes', ' townhouse', ' villas', ' villa',
+        ' estates', ' estate', ' commons',
         ', inc.', ', inc', ' inc.', ' inc'
     ]
     for suffix in suffixes_to_remove:
@@ -819,13 +822,68 @@ def detect_query_type(query):
 
 
 def extract_community_from_query(query):
-    """Try to extract community name from query."""
-    # Common community name patterns
+    """Try to extract community name from query by matching against known communities."""
+    query_lower = query.lower()
+
+    # Build lookup of all known community names on first call
+    if not hasattr(extract_community_from_query, '_lookup'):
+        lookup = []
+        for comm in ACTIVE_COMMUNITIES:
+            short = comm.get('short_name', '').strip()
+            full = comm.get('name', '').strip()
+            if short:
+                lookup.append((short, comm))
+            if full and full != short:
+                lookup.append((full, comm))
+        # Sort longest first so "Canopy at Westgate Grove" matches before "Canopy Condos"
+        lookup.sort(key=lambda x: len(x[0]), reverse=True)
+        extract_community_from_query._lookup = lookup
+
+    # Pass 1: Exact substring match - community name found verbatim in query
+    for name, comm in extract_community_from_query._lookup:
+        if name.lower() in query_lower:
+            return comm.get('short_name') or comm.get('name')
+
+    # Pass 2: Partial match - query contains the BEGINNING of a community name
+    # Handles: "Canopy" in query matching "Canopy Condos" in config
+    # Try word sequences from query
+    words = query_lower.split()
+    starts_with_matches = []  # (-fragment_len, community_name_len, idx, comm)
+    contains_matches = []
+    match_idx = 0
+
+    for start_idx in range(len(words)):
+        for end_idx in range(len(words), start_idx, -1):
+            fragment = ' '.join(words[start_idx:end_idx])
+            if len(fragment) < 4:  # Skip very short fragments
+                continue
+            for name, comm in extract_community_from_query._lookup:
+                name_lower = name.lower()
+                short_lower = (comm.get('short_name') or '').lower()
+                name_len = len(short_lower or name_lower)
+                # Fragment matches the START of a community name - high priority
+                if name_lower.startswith(fragment) or short_lower.startswith(fragment):
+                    starts_with_matches.append((-len(fragment), name_len, match_idx, comm))
+                    match_idx += 1
+                # Fragment found INSIDE a community name - lower priority
+                elif fragment in name_lower or fragment in short_lower:
+                    contains_matches.append((-len(fragment), name_len, match_idx, comm))
+                    match_idx += 1
+
+    # Prefer startsWith over contains, then longest fragment, then shortest community name
+    if starts_with_matches:
+        starts_with_matches.sort(key=lambda x: (x[0], x[1], x[2]))
+        return starts_with_matches[0][3].get('short_name') or starts_with_matches[0][3].get('name')
+    if contains_matches:
+        contains_matches.sort(key=lambda x: (x[0], x[1], x[2]))
+        return contains_matches[0][3].get('short_name') or contains_matches[0][3].get('name')
+
+
+    # Fallback: regex patterns for communities not in master config
     community_patterns = [
         r'(?:for|in|at)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)',
         r'([A-Z][a-z]+(?:\s+(?:Creek|Park|Hills?|Valley|Ranch|Pointe?|Vista|Heights?))+)',
     ]
-
     for pattern in community_patterns:
         match = re.search(pattern, query)
         if match:
@@ -933,6 +991,18 @@ def search_azure_documents(query, community=None, top=10):
                 # Get file path (v2 uses file_path instead of metadata_spo_item_path)
                 path = doc.get('file_path') or ''
 
+                # Construct SharePoint URL from file_path since web_url is not populated by indexer
+                # Path format: /drives/b!.../root:/Community/folder/file.pdf
+                sharepoint_url = ''
+                if path:
+                    root_match = re.search(r'/root:/(.*)', path)
+                    if root_match:
+                        relative_path = root_match.group(1)
+                        # URL-encode path segments but keep slashes
+                        from urllib.parse import quote
+                        encoded_path = '/'.join(quote(segment, safe='') for segment in relative_path.split('/'))
+                        sharepoint_url = f"https://psprop.sharepoint.com/sites/AssociationDocs/Association%20Documents/{encoded_path}"
+
                 # Extract community from path or use community_name field
                 doc_community = doc.get('community_name')
                 if not doc_community and path:
@@ -958,7 +1028,7 @@ def search_azure_documents(query, community=None, top=10):
                 results.append({
                     'title': doc.get('file_name') or doc.get('title') or path.split('/')[-1] if path else 'Unknown',
                     'path': path,
-                    'url': doc.get('web_url', ''),
+                    'url': doc.get('web_url') or sharepoint_url,
                     'community': doc_community,
                     'doc_type': doc_category,
                     'doc_type_info': doc_type_info,
@@ -989,14 +1059,17 @@ def search_azure_documents(query, community=None, top=10):
                     doc_community = doc.get('community') or ''
                     normalized_doc = normalize_community_name(doc_community)
 
+                    # No community info = no match (prevents empty string matching everything)
+                    if not normalized_doc or not normalized_query:
+                        return 0
                     # Exact match (after normalization) = 100
                     if normalized_doc == normalized_query:
                         return 100
                     # Query is contained in doc community = 50
                     if normalized_query in normalized_doc:
                         return 50
-                    # Doc community is contained in query = 40
-                    if normalized_doc in normalized_query:
+                    # Doc community is contained in query = 40 (but only if meaningful length)
+                    if len(normalized_doc) >= 3 and normalized_doc in normalized_query:
                         return 40
                     # No match = 0
                     return 0

@@ -2441,7 +2441,10 @@
                     <div class="doc-actions">
                         ${doc.url ? `
                             <a href="${escapeHtml(doc.url)}" target="_blank" class="btn btn-primary">
-                                <i class="fas fa-external-link-alt"></i> View in SharePoint
+                                <i class="fas fa-external-link-alt"></i> View Document
+                            </a>
+                            <a href="${escapeHtml(doc.url.substring(0, doc.url.lastIndexOf('/')))}" target="_blank" class="btn btn-secondary">
+                                <i class="fas fa-folder-open"></i> Open Folder
                             </a>
                         ` : ''}
                         <button class="btn btn-secondary" onclick="copyToClipboard('${escapeHtml(doc.title)}')">
