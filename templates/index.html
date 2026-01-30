@@ -700,6 +700,35 @@
             box-shadow: 0 4px 12px rgba(10, 102, 194, 0.25);
         }
 
+        .btn-view-source {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-view-source:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-view-source.active {
+            background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+        }
+
+        .ai-source-panel {
+            margin-top: 1rem;
+        }
+
         .ai-answer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1780,6 +1809,7 @@
                 <div class="logo-text">
                     <span class="logo-title">Manager Wizard</span>
                     <span class="logo-subtitle">PS Property Management</span>
+                    <!-- Build: v4-inline-preview -->
                 </div>
             </a>
             <div style="display: flex; align-items: center; gap: 16px;">
@@ -2316,15 +2346,21 @@
             const mainAnswer = extracted.answer || extracted.summary || '';
             const sourceName = extracted.source || (extracted.documents_found && extracted.documents_found[0]) || '';
 
-            // Find the source document URL from the documents array
+            // Find the source document from the documents array
+            let sourceDoc = null;
             let sourceUrl = '';
             if (sourceName && documents) {
-                const sourceDoc = documents.find(d =>
+                sourceDoc = documents.find(d =>
                     d.title && d.title.toLowerCase().includes(sourceName.toLowerCase().replace('.pdf', ''))
                 );
                 if (sourceDoc && sourceDoc.url) {
                     sourceUrl = sourceDoc.url;
                 }
+            }
+            // Fallback to first document if no specific source match
+            if (!sourceDoc && documents && documents.length > 0) {
+                sourceDoc = documents[0];
+                if (!sourceUrl && sourceDoc.url) sourceUrl = sourceDoc.url;
             }
 
             // Get caption with highlights from first document if available
@@ -2333,9 +2369,28 @@
                 captionHighlighted = documents[0].caption_highlighted;
             }
 
+            // Build source document preview content with highlighted search terms
+            const previewId = 'ai-source-preview-' + Math.random().toString(36).substr(2, 9);
+            let sourceContentHtml = '';
+            if (sourceDoc && sourceDoc.content) {
+                let text = escapeHtml(sourceDoc.content);
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && searchInput.value) {
+                    const queryWords = searchInput.value.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                    const skipWords = ['the', 'and', 'for', 'are', 'was', 'who', 'what', 'how', 'does', 'rules', 'responsible', 'owner', 'maintenance'];
+                    const highlightWords = queryWords.filter(w => !skipWords.includes(w));
+                    highlightWords.forEach(word => {
+                        const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                        text = text.replace(regex, '<mark>$1</mark>');
+                    });
+                }
+                sourceContentHtml = text;
+            }
+
             // Generate unique ID for this answer card
             const answerId = 'answer-' + Math.random().toString(36).substr(2, 9);
             const quoteText = extracted.quote || (captionHighlighted ? captionHighlighted.replace(/<[^>]*>/g, '') : '');
+            const hasSourceContent = sourceContentHtml.length > 0;
 
             return `
                 <div class="ai-answer-card" id="${answerId}">
@@ -2359,10 +2414,10 @@
                                 <div class="quote-source">
                                     <i class="fas fa-file-pdf"></i>
                                     <span>${escapeHtml(sourceName)}</span>
-                                    ${sourceUrl ? `
-                                        <a href="${escapeHtml(sourceUrl)}" target="_blank" class="quote-link">
-                                            Open Document <i class="fas fa-external-link-alt"></i>
-                                        </a>
+                                    ${hasSourceContent ? `
+                                        <button class="btn-view-source" onclick="toggleAiSourcePreview('${previewId}', this)">
+                                            <i class="fas fa-eye"></i> View Source Document
+                                        </button>
                                     ` : ''}
                                 </div>
                             ` : ''}
@@ -2373,15 +2428,45 @@
                             <div class="ai-source-doc">
                                 <i class="fas fa-file-pdf"></i>
                                 <span>${escapeHtml(sourceName)}</span>
-                                ${sourceUrl ? `
-                                    <a href="${escapeHtml(sourceUrl)}" target="_blank" class="ai-source-btn">
-                                        <i class="fas fa-external-link-alt"></i>
-                                        View in SharePoint
-                                    </a>
+                                ${hasSourceContent ? `
+                                    <button class="btn-view-source" onclick="toggleAiSourcePreview('${previewId}', this)">
+                                        <i class="fas fa-eye"></i> View Source Document
+                                    </button>
                                 ` : ''}
                             </div>
                         </div>
                     ` : '')}
+
+                    <!-- Inline Source Document Preview -->
+                    ${hasSourceContent ? `
+                    <div id="${previewId}" class="doc-preview-panel ai-source-panel">
+                        <div class="doc-preview-inner">
+                            <div class="doc-preview-toolbar">
+                                <div class="doc-preview-toolbar-left">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span class="doc-preview-toolbar-title">${escapeHtml(sourceDoc.title || sourceName)}</span>
+                                </div>
+                                <div class="doc-preview-toolbar-actions">
+                                    <button onclick="toggleAiSourcePreview('${previewId}', null)">
+                                        <i class="fas fa-times"></i> Close
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="doc-preview-content">
+                                <div class="doc-preview-content-text">${sourceContentHtml}</div>
+                            </div>
+                            <div class="doc-preview-footer">
+                                <span>Showing indexed excerpt &middot; ${sourceDoc.content.length} characters</span>
+                                ${sourceUrl ? `
+                                    <a href="${escapeHtml(sourceUrl)}" target="_blank">
+                                        <i class="fas fa-external-link-alt"></i> Open full document in SharePoint
+                                    </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+
                     <div class="ai-answer-actions" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
                         <button class="copy-email-btn"
                             data-card-id="${answerId}"
@@ -2720,6 +2805,28 @@
                 panel.classList.add('open');
                 if (btn) btn.classList.add('active');
                 // Scroll the panel into view smoothly
+                setTimeout(() => {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 350);
+            }
+        }
+
+        function toggleAiSourcePreview(previewId, btn) {
+            const panel = document.getElementById(previewId);
+            if (!panel) return;
+
+            const isOpen = panel.classList.contains('open');
+
+            if (isOpen) {
+                panel.classList.remove('open');
+                if (btn) btn.classList.remove('active');
+            } else {
+                // Close any other open source previews
+                document.querySelectorAll('.ai-source-panel.open').forEach(p => {
+                    p.classList.remove('open');
+                });
+                panel.classList.add('open');
+                if (btn) btn.classList.add('active');
                 setTimeout(() => {
                     panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }, 350);
