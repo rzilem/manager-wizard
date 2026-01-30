@@ -2830,21 +2830,57 @@
                 captionHighlighted = documents[0].caption_highlighted;
             }
 
-            // Build source document preview content with highlighted search terms
+            // Build source document preview - show RELEVANT EXCERPT only, not full document
             const previewId = 'ai-source-preview-' + Math.random().toString(36).substr(2, 9);
             let sourceContentHtml = '';
             if (sourceDoc && sourceDoc.content) {
-                let text = escapeHtml(sourceDoc.content);
+                const fullText = sourceDoc.content;
                 const searchInput = document.getElementById('searchInput');
-                if (searchInput && searchInput.value) {
-                    const queryWords = searchInput.value.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-                    const skipWords = ['the', 'and', 'for', 'are', 'was', 'who', 'what', 'how', 'does', 'rules', 'responsible', 'owner', 'maintenance'];
-                    const highlightWords = queryWords.filter(w => !skipWords.includes(w));
-                    highlightWords.forEach(word => {
-                        const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-                        text = text.replace(regex, '<mark>$1</mark>');
+                const queryWords = (searchInput && searchInput.value)
+                    ? searchInput.value.toLowerCase().split(/\s+/).filter(w => w.length > 2)
+                    : [];
+                const skipWords = ['the', 'and', 'for', 'are', 'was', 'who', 'what', 'how', 'does', 'rules', 'responsible', 'owner', 'maintenance', 'can', 'long', 'stay'];
+                const highlightWords = queryWords.filter(w => !skipWords.includes(w));
+
+                // Find the most relevant excerpt by locating where keywords cluster
+                let bestPos = 0;
+                let bestScore = -1;
+                const lowerText = fullText.toLowerCase();
+                const windowSize = 800;
+
+                // Also use the AI answer/quote to find the best spot
+                const answerText = (extracted.answer || extracted.quote || '').toLowerCase();
+                const answerWords = answerText.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+                const allSearchTerms = [...highlightWords, ...answerWords];
+
+                for (let i = 0; i < fullText.length - 100; i += 50) {
+                    const window = lowerText.substring(i, i + windowSize);
+                    let score = 0;
+                    allSearchTerms.forEach(word => {
+                        const idx = window.indexOf(word.toLowerCase());
+                        if (idx !== -1) score += 3;
                     });
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestPos = i;
+                    }
                 }
+
+                // Extract excerpt with some padding
+                const excerptStart = Math.max(0, bestPos - 100);
+                const excerptEnd = Math.min(fullText.length, bestPos + windowSize + 100);
+                let excerpt = fullText.substring(excerptStart, excerptEnd).trim();
+
+                // Add ellipsis if trimmed
+                if (excerptStart > 0) excerpt = '...' + excerpt;
+                if (excerptEnd < fullText.length) excerpt = excerpt + '...';
+
+                // Escape and highlight
+                let text = escapeHtml(excerpt);
+                highlightWords.forEach(word => {
+                    const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                    text = text.replace(regex, '<mark>$1</mark>');
+                });
                 sourceContentHtml = text;
             }
 
@@ -2917,7 +2953,7 @@
                                 <div class="doc-preview-content-text">${sourceContentHtml}</div>
                             </div>
                             <div class="doc-preview-footer">
-                                <span>Showing indexed excerpt &middot; ${sourceDoc.content.length} characters</span>
+                                <span>Showing relevant excerpt from source document</span>
                                 ${sourceUrl ? `
                                     <a href="${escapeHtml(sourceUrl)}" target="_blank">
                                         <i class="fas fa-external-link-alt"></i> Open full document in SharePoint
