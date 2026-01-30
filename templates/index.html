@@ -1470,97 +1470,73 @@
             color: white;
         }
 
-        .doc-preview-excerpt {
-            padding: 16px 20px;
+        /* removed old excerpt styles - now using doc-preview-content */
+
+        .doc-preview-content {
+            padding: 20px 24px;
             background: white;
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .doc-preview-excerpt-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.68rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--doc-color, var(--primary));
-            margin-bottom: 10px;
-        }
-
-        .doc-preview-excerpt-text {
-            font-size: 0.85rem;
-            line-height: 1.7;
-            color: var(--gray-700);
-            max-height: 200px;
+            max-height: 400px;
             overflow-y: auto;
-            padding-right: 8px;
         }
 
-        .doc-preview-excerpt-text::-webkit-scrollbar {
-            width: 4px;
+        .doc-preview-content::-webkit-scrollbar {
+            width: 6px;
         }
 
-        .doc-preview-excerpt-text::-webkit-scrollbar-thumb {
-            background: var(--gray-300);
-            border-radius: 4px;
-        }
-
-        .doc-preview-excerpt-text mark {
-            background: linear-gradient(120deg, #fef08a 0%, #fde047 100%);
-            color: var(--gray-900);
-            padding: 1px 4px;
-            border-radius: 3px;
-            font-weight: 600;
-        }
-
-        .doc-preview-iframe-wrap {
-            position: relative;
-            height: 500px;
+        .doc-preview-content::-webkit-scrollbar-track {
             background: var(--gray-100);
         }
 
-        .doc-preview-iframe-wrap iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
+        .doc-preview-content::-webkit-scrollbar-thumb {
+            background: var(--gray-300);
+            border-radius: 6px;
         }
 
-        .doc-preview-loading {
-            position: absolute;
-            inset: 0;
+        .doc-preview-content::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-400);
+        }
+
+        .doc-preview-content-text {
+            font-size: 0.88rem;
+            line-height: 1.85;
+            color: var(--gray-700);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            letter-spacing: 0.01em;
+        }
+
+        .doc-preview-content-text mark {
+            background: linear-gradient(120deg, #fef08a 0%, #fde047 100%);
+            color: var(--gray-900);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+
+        .doc-preview-footer {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 12px;
+            justify-content: space-between;
+            padding: 10px 16px;
             background: var(--gray-50);
-            z-index: 2;
-            transition: opacity 0.3s ease;
-        }
-
-        .doc-preview-loading.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .doc-preview-spinner {
-            width: 36px;
-            height: 36px;
-            border: 3px solid var(--gray-200);
-            border-top-color: var(--doc-color, var(--primary));
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .doc-preview-loading-text {
-            font-size: 0.8rem;
+            border-top: 1px solid var(--gray-200);
+            font-size: 0.72rem;
             color: var(--gray-500);
-            font-weight: 500;
+        }
+
+        .doc-preview-footer a {
+            color: var(--doc-color, var(--primary));
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .doc-preview-footer a:hover {
+            text-decoration: underline;
         }
 
         .btn-preview-toggle {
@@ -2638,27 +2614,23 @@
             const hasContent = doc.content && doc.content.trim().length > 0;
             const hasUrl = !!doc.url;
 
-            // Build the highlighted excerpt - prefer caption_highlighted, fall back to content
-            let excerptHtml = '';
-            if (doc.caption_highlighted) {
-                excerptHtml = doc.caption_highlighted;
-            } else if (doc.content) {
-                // Truncate content and show first ~600 chars
-                let text = escapeHtml(doc.content.substring(0, 600));
-                if (doc.content.length > 600) text += '...';
+            // Build the full content with highlighted search terms
+            let contentHtml = '';
+            const rawContent = doc.content || '';
+            if (rawContent) {
+                let text = escapeHtml(rawContent);
                 // Highlight search terms from the query
                 const searchInput = document.getElementById('searchInput');
                 if (searchInput && searchInput.value) {
                     const queryWords = searchInput.value.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-                    // Remove common words that aren't useful to highlight
-                    const skipWords = ['the', 'and', 'for', 'are', 'was', 'who', 'what', 'how', 'does', 'rules', 'responsible'];
+                    const skipWords = ['the', 'and', 'for', 'are', 'was', 'who', 'what', 'how', 'does', 'rules', 'responsible', 'owner', 'maintenance'];
                     const highlightWords = queryWords.filter(w => !skipWords.includes(w));
                     highlightWords.forEach(word => {
                         const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
                         text = text.replace(regex, '<mark>$1</mark>');
                     });
                 }
-                excerptHtml = text;
+                contentHtml = text;
             }
 
             return `
@@ -2685,16 +2657,11 @@
                         </div>
                     </div>
                     <div class="doc-actions">
-                        ${hasContent || hasUrl ? `
-                            <button class="btn-preview-toggle" onclick="toggleDocPreview('${previewId}', this, '${hasUrl ? escapeHtml(doc.url).replace(/'/g, "\\'") : ''}')">
+                        ${hasContent ? `
+                            <button class="btn-preview-toggle" onclick="toggleDocPreview('${previewId}', this)">
                                 <i class="fas fa-eye"></i> Preview
                                 <i class="fas fa-chevron-down toggle-chevron"></i>
                             </button>
-                        ` : ''}
-                        ${hasUrl ? `
-                            <a href="${escapeHtml(doc.url)}" target="_blank" class="btn btn-secondary">
-                                <i class="fas fa-external-link-alt"></i> Open in SharePoint
-                            </a>
                         ` : ''}
                         <button class="btn btn-secondary" onclick="copyToClipboard('${escapeHtml(doc.title)}')">
                             <i class="fas fa-copy"></i> Copy Title
@@ -2702,7 +2669,7 @@
                     </div>
 
                     <!-- Expandable Preview Panel -->
-                    <div id="${previewId}" class="doc-preview-panel" data-url="${hasUrl ? escapeHtml(doc.url) : ''}" data-loaded="false">
+                    <div id="${previewId}" class="doc-preview-panel">
                         <div class="doc-preview-inner">
                             <div class="doc-preview-toolbar">
                                 <div class="doc-preview-toolbar-left">
@@ -2710,80 +2677,52 @@
                                     <span class="doc-preview-toolbar-title">${escapeHtml(doc.title)}</span>
                                 </div>
                                 <div class="doc-preview-toolbar-actions">
-                                    ${hasUrl ? `
-                                        <a href="${escapeHtml(doc.url)}" target="_blank">
-                                            <i class="fas fa-external-link-alt"></i> Full View
-                                        </a>
-                                        <a href="${escapeHtml(doc.url.substring(0, doc.url.lastIndexOf('/')))}" target="_blank">
-                                            <i class="fas fa-folder-open"></i> Folder
-                                        </a>
-                                    ` : ''}
-                                    <button onclick="toggleDocPreview('${previewId}', document.querySelector('[onclick*=\\'${previewId}\\']'))">
+                                    <button onclick="toggleDocPreview('${previewId}', this.closest('.document-card').querySelector('.btn-preview-toggle'))">
                                         <i class="fas fa-times"></i> Close
                                     </button>
                                 </div>
                             </div>
-                            ${excerptHtml ? `
-                                <div class="doc-preview-excerpt">
-                                    <div class="doc-preview-excerpt-label">
-                                        <i class="fas fa-highlighter"></i>
-                                        Relevant Excerpt
-                                    </div>
-                                    <div class="doc-preview-excerpt-text">${excerptHtml}</div>
+                            ${contentHtml ? `
+                                <div class="doc-preview-content">
+                                    <div class="doc-preview-content-text">${contentHtml}</div>
                                 </div>
                             ` : ''}
-                            ${hasUrl ? `
-                                <div class="doc-preview-iframe-wrap">
-                                    <div class="doc-preview-loading" id="${previewId}-loading">
-                                        <div class="doc-preview-spinner" style="border-top-color: ${typeInfo.color}"></div>
-                                        <div class="doc-preview-loading-text">Loading document...</div>
-                                    </div>
-                                </div>
-                            ` : ''}
+                            <div class="doc-preview-footer">
+                                <span>Showing indexed excerpt &middot; ${rawContent.length} characters</span>
+                                ${hasUrl ? `
+                                    <a href="${escapeHtml(doc.url)}" target="_blank">
+                                        <i class="fas fa-external-link-alt"></i> Open full document in SharePoint
+                                    </a>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        function toggleDocPreview(previewId, btn, url) {
+        function toggleDocPreview(previewId, btn) {
             const panel = document.getElementById(previewId);
             if (!panel) return;
 
             const isOpen = panel.classList.contains('open');
 
             if (isOpen) {
-                // Collapse
                 panel.classList.remove('open');
                 if (btn) btn.classList.remove('active');
             } else {
-                // Expand
+                // Close any other open previews first
+                document.querySelectorAll('.doc-preview-panel.open').forEach(p => {
+                    p.classList.remove('open');
+                    const otherBtn = p.closest('.document-card').querySelector('.btn-preview-toggle');
+                    if (otherBtn) otherBtn.classList.remove('active');
+                });
                 panel.classList.add('open');
                 if (btn) btn.classList.add('active');
-
-                // Load iframe on first open
-                if (panel.dataset.loaded === 'false' && url) {
-                    panel.dataset.loaded = 'true';
-                    const iframeWrap = panel.querySelector('.doc-preview-iframe-wrap');
-                    const loading = panel.querySelector('.doc-preview-loading');
-
-                    if (iframeWrap) {
-                        // Build embed URL - use Office Online viewer for SharePoint docs
-                        const embedUrl = url;
-                        const iframe = document.createElement('iframe');
-                        iframe.src = embedUrl;
-                        iframe.title = 'Document Preview';
-                        iframe.setAttribute('loading', 'lazy');
-                        iframe.onload = () => {
-                            if (loading) loading.classList.add('hidden');
-                        };
-                        // Hide loading after timeout in case onload doesn't fire (cross-origin)
-                        setTimeout(() => {
-                            if (loading) loading.classList.add('hidden');
-                        }, 4000);
-                        iframeWrap.appendChild(iframe);
-                    }
-                }
+                // Scroll the panel into view smoothly
+                setTimeout(() => {
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 350);
             }
         }
 
